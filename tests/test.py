@@ -5,10 +5,20 @@ if isinstance(l, str):
     print("l is str")
 
 import tensorflow as tf
+import numpy as np
 print(tf.__version__)
 from tensorflow.python.keras.layers import Embedding, IntegerLookup, StringLookup, Hashing, CategoryCrossing
-print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
-print("Num GPUs Available: ", tf.config.list_physical_devices('GPU'))
+
+print("split")
+t = tf.constant(["7205|4377|4377|4377", "8057|6421|5239|7565|6423"])
+t2 = tf.strings.split(t, '|')
+layer = Hashing(num_bins=5)
+emb_layer = Embedding(5, 3, embeddings_initializer='glorot_normal')
+t3 = layer(t2)
+t4 = emb_layer(t3)
+t5 = tf.reduce_sum(t4, axis=1)
+t6 = tf.reduce_sum(t5, axis=1)
+print(t3)
 
 print("Variable")
 w = tf.Variable([float(e) for e in range(20)])
