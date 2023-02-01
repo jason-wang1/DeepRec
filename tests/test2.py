@@ -33,5 +33,7 @@ l = [1, 2, 5, 6, 7, 8, 9]
 res = bin_search(l, 2)
 
 import pandas as pd
-sample_df = pd.read_csv("C:\\data\\taobao_data\\sample_10.csv")
+# sample_df = pd.read_csv("C:\\data\\taobao_data\\sample_10.csv")
+sample_df = pd.read_csv("C:\\data\\avazu-ctr-prediction\\train.csv", iterator=True)
+sample_df = sample_df.read(5)
 print(sample_df)
