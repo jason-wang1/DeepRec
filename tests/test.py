@@ -21,10 +21,9 @@ t6 = tf.reduce_sum(t5, axis=1)
 print(t3)
 
 print("Variable")
-w = tf.Variable([float(e) for e in range(20)])
-data = tf.constant([[1, 3, 8, 2], [1, 3, 8, 2]])
-data = tf.constant([1, 3, 8, 2])
-print(tf.gather(w, data))
+w = tf.reshape(tf.range(8, dtype=tf.float32), [2, 4, 1])
+print(w)
+print(tf.nn.softmax(w, axis=1))
 
 print("embedding")
 layer = Embedding(100, 1, embeddings_initializer='glorot_normal')

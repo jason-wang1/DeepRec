@@ -1,7 +1,18 @@
 {
   "train_input_path": "C:\\data\\taobao_data\\sample.csv",
   "model_dir": "/home/wangbo/tf_model/time_",
-  "model_type": "TwoTowerDeepFM",
+  "model_config": {
+    "model_type": "TwoTowerDeepFM",
+    "feature_groups": {
+      "user": ["tag_category_list", "tag_brand_list", "cms_segid", "cms_group_id", "age_level",
+        "pvalue_level", "shopping_level", "occupation", "new_user_class_level"],
+      "item": ["adgroup_id", "cate_id", "campaign_id", "customer", "brand", "price"]
+    },
+    "embedding_dim": 16,
+    "wide_output_dim": 16,
+    "deep_hidden_units": [128, 64, 32],
+    "l2_reg": 0.0001
+  },
   "train_config": {
     "epochs": 20,
     "steps_per_epoch":100,
@@ -67,16 +78,5 @@
       {"input_names": "new_user_class_level", "feature_type": "IdFeature", "hash_bucket_size": 10, "embedding_dim": 16},
       {"input_names": "price", "feature_type": "RawFeature", "boundaries": [49.0, 139.0, 352.0], "embedding_dim": 16}
     ]
-  },
-  "model_config": {
-    "feature_groups": {
-      "user": ["tag_category_list", "tag_brand_list", "cms_segid", "cms_group_id", "age_level",
-        "pvalue_level", "shopping_level", "occupation", "new_user_class_level"],
-      "item": ["adgroup_id", "cate_id", "campaign_id", "customer", "brand", "price"]
-    },
-    "embedding_dim": 16,
-    "wide_output_dim": 16,
-    "deep_hidden_units": [128, 64, 32],
-    "l2_reg": 0.0001
   }
 }

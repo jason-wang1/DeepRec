@@ -1,16 +1,9 @@
 import math
-l = []
-l.append(tuple([2, 5]))
-print(l)
+import itertools
 
-
-l = ["site_id", "app_id", "C2"]
-l = []
-l2 = ["c1", "c2"]
-l.extend(l2)
-l.append((2, 3))
-print(l)
-print(1e-5)
+l = [1, 2, 1, 3]
+for e in itertools.combinations(l, 3):
+    print(e)
 
 s = "63133,6406,83237,1,95471,170.0"
 s2 = s.split(",", maxsplit=2)

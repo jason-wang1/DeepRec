@@ -5,10 +5,12 @@ from tensorflow.python.keras import optimizers
 from tensorflow.keras.optimizers.schedules import ExponentialDecay
 from models.twotower_deepfm import TwoTowerDeepFM
 from models.deepfm import DeepFM
+from models.afm import AFM
 
 class TrainPipeline():
-    def __init__(self, config):
+    def __init__(self, config, run_eagerly=False):
         self.config = config
+        self.run_eagerly = run_eagerly
 
     def read_data(self):
         data_config = self.config["data_config"]
@@ -50,16 +52,18 @@ class TrainPipeline():
 
     def get_model(self):
         optimizer = self.get_optimizer()
-        model_type = self.config["model_type"]
+        model_type = self.config["model_config"]["model_type"]
         if model_type == "TwoTowerDeepFM":
             model = TwoTowerDeepFM(self.config)
         elif model_type == "DeepFM":
             model = DeepFM(self.config)
+        elif model_type == "AFM":
+            model = AFM(self.config)
         else:
             print(f"unexpected model_type: {model_type}")
             sys.exit(1)
         model.compile(optimizer=optimizer, loss=self.config["train_config"]["loss"],
-                      metrics=self.config["train_config"]["metrics"])
+                      metrics=self.config["train_config"]["metrics"], run_eagerly=self.run_eagerly)
         return model
 
     def train(self):
