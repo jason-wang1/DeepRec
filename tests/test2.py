@@ -4,7 +4,8 @@ import itertools
 # avazu
 # fm: 0.7062
 # afm: 0.6086
-# deepfm: 0.
+# afm 加权: 0.7295
+# deepfm: 0.7480
 
 dic1 = {'a':1, 'b':2}
 dic2 = {'b':22, 'd':4}

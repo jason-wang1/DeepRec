@@ -41,7 +41,7 @@ class AFMLayer(Layer):
         bi_interaction = p * q  # (batch_size, bi_interaction_size, emb_size)
         att_tensor = self.W_dense(bi_interaction)  # (batch_size, bi_interaction_size, attention_factor)
         att_tensor = self.h_dense(att_tensor)  # (batch_size, bi_interaction_size, 1)
-        att_tensor = tf.nn.softmax(att_tensor, axis=1)  # (batch_size, bi_interaction_size, 1)
+        att_tensor = tf.nn.softmax(att_tensor, axis=1) * (((self.feat_size-1) * self.feat_size)/2.0)  # (batch_size, bi_interaction_size, 1)
         att_bi_interaction = tf.reduce_sum(bi_interaction * att_tensor, axis=1)  # (batch_size, emb_size)
         output = self.p_dense(att_bi_interaction)
         return output
