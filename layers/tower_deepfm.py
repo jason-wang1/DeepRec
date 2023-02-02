@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.python.keras.layers import Layer
-from layers.fm import FM
+from layers.fm import FMLayer
 from layers.dnn import DNN
 import sys
 
@@ -23,7 +23,7 @@ class TowerDeepFM(Layer):
         super(TowerDeepFM, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        self.fm = FM(name="fm")
+        self.fm = FMLayer(name="fm")
         self.dnn = DNN(dnn_shape=self.dnn_shape, reg=self.reg, name="dnn")
         super(TowerDeepFM, self).build(input_shape)
 

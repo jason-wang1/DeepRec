@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.python.keras.layers import Layer
 
 
-class FM(Layer):
+class FMLayer(Layer):
     """Factorization Machine models pairwise (order-2) feature interactions
      without linear term and bias.
 
@@ -13,13 +13,13 @@ class FM(Layer):
         - 2D tensor with shape: ``(batch_size, 1)``.
     """
     def __init__(self, name: str, **kwargs):
-        super(FM, self).__init__(name=name, **kwargs)
+        super(FMLayer, self).__init__(name=name, **kwargs)
 
     def build(self, input_shape):
         if len(input_shape) != 3:
             raise ValueError("Unexpected inputs dimensions % d,\
                              expect to be 3 dimensions" % (len(input_shape)))
-        super(FM, self).build(input_shape)  # Be sure to call this somewhere!
+        super(FMLayer, self).build(input_shape)  # Be sure to call this somewhere!
 
     def call(self, inputs, **kwargs):
         square_of_sum = tf.square(tf.reduce_sum(inputs, axis=1, keepdims=True))

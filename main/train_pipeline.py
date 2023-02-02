@@ -6,6 +6,7 @@ from tensorflow.keras.optimizers.schedules import ExponentialDecay
 from models.twotower_deepfm import TwoTowerDeepFM
 from models.deepfm import DeepFM
 from models.afm import AFM
+from models.fm import FM
 
 class TrainPipeline():
     def __init__(self, config, run_eagerly=False):
@@ -53,7 +54,9 @@ class TrainPipeline():
     def get_model(self):
         optimizer = self.get_optimizer()
         model_type = self.config["model_config"]["model_type"]
-        if model_type == "TwoTowerDeepFM":
+        if model_type == "FM":
+            model = FM(self.config)
+        elif model_type == "TwoTowerDeepFM":
             model = TwoTowerDeepFM(self.config)
         elif model_type == "DeepFM":
             model = DeepFM(self.config)

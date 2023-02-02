@@ -1,6 +1,17 @@
 import math
 import itertools
 
+# avazu
+# fm: 0.7062
+# afm: 0.6086
+# deepfm: 0.
+
+dic1 = {'a':1, 'b':2}
+dic2 = {'b':22, 'd':4}
+# print(**dic1)
+# print(**dic2)
+print({**dic1, **dic2})
+
 l = [1, 2, 1, 3]
 for e in itertools.combinations(l, 3):
     print(e)
@@ -25,8 +36,8 @@ def bin_search(l, target):
 l = [1, 2, 5, 6, 7, 8, 9]
 res = bin_search(l, 2)
 
-import pandas as pd
-# sample_df = pd.read_csv("C:\\data\\taobao_data\\sample_10.csv")
-sample_df = pd.read_csv("C:\\data\\avazu-ctr-prediction\\train.csv", iterator=True)
-sample_df = sample_df.read(5)
-print(sample_df)
+# import pandas as pd
+# # sample_df = pd.read_csv("C:\\data\\taobao_data\\sample_10.csv")
+# sample_df = pd.read_csv("C:\\data\\avazu-ctr-prediction\\train.csv", iterator=True)
+# sample_df = sample_df.read(5)
+# print(sample_df)
