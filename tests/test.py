@@ -5,9 +5,15 @@ if isinstance(l, str):
     print("l is str")
 
 import tensorflow as tf
+from tensorflow.keras.layers import Dense, Multiply
 import numpy as np
 print(tf.__version__)
 from tensorflow.python.keras.layers import Embedding, IntegerLookup, StringLookup, Hashing, CategoryCrossing
+
+x1 = Dense(8)(np.arange(10).reshape(5, 2))
+x2 = Dense(8)(np.arange(10, 20).reshape(5, 2))
+multiplied = Multiply()([x1, x2])
+multiplied.shape
 
 print("split")
 t = tf.constant(["7205|4377|4377|4377", "8057|6421|5239|7565|6423"])

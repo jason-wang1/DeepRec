@@ -13,6 +13,28 @@ class TrainPipeline():
         self.config = config
         self.run_eagerly = run_eagerly
 
+    def get_label(self, labels):
+        def get_label(tensor_dict):
+            label = tensor_dict[labels]
+            del tensor_dict[labels]
+            return tensor_dict, label
+        def get_multi_label(tensor_dict):
+            label_dict = {}
+            for label_name in labels:
+                label_dict[label_name] = tensor_dict[label_name]
+                del tensor_dict[label_name]
+            return tensor_dict, label_dict
+        if isinstance(labels, str):
+            return get_label
+        elif isinstance(labels, list):
+            if len(labels) == 1:
+                labels = labels[0]
+                return get_label
+            else:
+                return get_multi_label
+        else:
+            raise ValueError(f"labels must be a string or list, but {labels}")
+
     def read_data(self):
         data_config = self.config["data_config"]
         input_fields = data_config["input_fields"]
@@ -21,10 +43,11 @@ class TrainPipeline():
         if data_config["input_type"] == "CSVInput":
             train_ds = tf.data.experimental.make_csv_dataset(
                 self.config["train_input_path"], data_config["batch_size"], column_names=column_names,
-                column_defaults=column_defaults, label_name=data_config["label_fields"])
+                column_defaults=column_defaults)
         else:
             print(f"unexpected input_type: {data_config['input_type']}")
             sys.exit(1)
+        train_ds = train_ds.map(self.get_label(data_config["label_fields"]))
         train_ds = train_ds.prefetch(data_config["prefetch_size"])
         return train_ds
 
