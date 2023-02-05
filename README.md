@@ -20,6 +20,6 @@ DeepRec 是一个易用、易扩展、模块化的深度学习推荐算法项目
 |   [FM](https://www.csie.ntu.edu.tw/~b97053/paper/Rendle2010FM.pdf)   |   在线性模型基础上进行了二阶特征交叉，且适用于高维稀疏特征样本   |
 |   [AFM](https://arxiv.org/pdf/1708.04617.pdf)   |   在FM交叉特征中引入注意力机制，学习不同特征交叉的重要程度，降低无效特征交叉的权重   |
 |   [DeepFM](https://www.ijcai.org/proceedings/2017/0239.pdf)   |   在wide侧使用FM进行二阶特征交叉，Deep侧使用多层神经网络   |
-|   [ESMM](https://arxiv.org/abs/1804.07931)   |   通过预估CTR、CTCVR来间接预估CVR，缓解传统CVR预估的样本选择偏差、样本稀疏问题   |
 |   TwoTowerDeepFM   |   深度向量双塔模型，并把FM双塔化，实现了user塔与item塔的显示特征交叉   |
+|   [ESMM](https://arxiv.org/abs/1804.07931)   |   通过预估CTR、CTCVR来间接预估CVR，缓解传统CVR预估的样本选择偏差、样本稀疏问题   |
 
