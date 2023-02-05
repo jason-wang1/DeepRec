@@ -15,6 +15,9 @@ with open(model_config_path) as f:
 
 config = {**data_config, **model_config}
 print(config)
-pipeline = TrainPipeline(config, run_eagerly=False)
+pipeline = TrainPipeline(config, run_eagerly=None)
 model = pipeline.train()
 model.summary()
+# ds = pipeline.read_data()
+# print(next(iter(ds)))
+

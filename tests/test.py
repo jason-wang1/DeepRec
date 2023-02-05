@@ -5,7 +5,7 @@ if isinstance(l, str):
     print("l is str")
 
 import tensorflow as tf
-from tensorflow.keras.layers import Dense, Multiply
+from tensorflow.keras.layers import Dense, Multiply, Lambda, Layer
 import numpy as np
 print(tf.__version__)
 from tensorflow.python.keras.layers import Embedding, IntegerLookup, StringLookup, Hashing, CategoryCrossing
@@ -13,7 +13,6 @@ from tensorflow.python.keras.layers import Embedding, IntegerLookup, StringLooku
 x1 = Dense(8)(np.arange(10).reshape(5, 2))
 x2 = Dense(8)(np.arange(10, 20).reshape(5, 2))
 multiplied = Multiply()([x1, x2])
-multiplied.shape
 
 print("split")
 t = tf.constant(["7205|4377|4377|4377", "8057|6421|5239|7565|6423"])
@@ -25,6 +24,32 @@ t4 = emb_layer(t3)
 t5 = tf.reduce_sum(t4, axis=1)
 t6 = tf.reduce_sum(t5, axis=1)
 print(t3)
+
+
+print("split2")
+t = tf.constant(["3879187:0.98095|3957588:1.67391|3897513:0.73381", "3869383:0.84715|3928559:1.09861", ""])
+def_val = tf.constant(["0:0", "0:0", "0:0"])
+t = tf.where(tf.equal(t, ""), "0:0", t)
+emb_layer = Embedding(10000000, 5)
+layers = [
+    Lambda(lambda x: tf.strings.split(tf.strings.split(x, "|"), ":")),
+    Lambda(lambda x: x.to_tensor(shape=[None, 2, 2], default_value='0')),
+    Lambda(lambda x: tf.split(x, num_or_size_splits=2, axis=2)),
+    Lambda(lambda x: [tf.strings.to_number(x[0], out_type=tf.int32), tf.strings.to_number(x[1], out_type=tf.float32)]),
+    Lambda(lambda x: [tf.squeeze(x[0], axis=2), x[1]]),
+]
+for lay in layers:
+    t = lay(t)
+emb = emb_layer(t[0])
+print("split3")
+t = tf.constant(["9027227|9075427|9057945", "9115789|9027881", "0"])
+layers = [
+    Lambda(lambda x: tf.strings.to_number(tf.strings.split(x, "|"), out_type=tf.int32)),
+]
+for lay in layers:
+    t = lay(t)
+t = emb_layer(t)
+print(t)
 
 print("Variable")
 w = tf.reshape(tf.range(8, dtype=tf.float32), [2, 4, 1])

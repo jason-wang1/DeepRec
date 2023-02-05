@@ -29,7 +29,7 @@
       {"input_name": "C21", "input_type": "INT64", "default_val": 0}
     ],
     "label_fields": "click",
-    "batch_size": 128,
+    "batch_size": 1024,
     "prefetch_size": 8,
     "input_type": "CSVInput"
   },

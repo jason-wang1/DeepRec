@@ -7,9 +7,10 @@ from models.twotower_deepfm import TwoTowerDeepFM
 from models.deepfm import DeepFM
 from models.afm import AFM
 from models.fm import FM
+from models.esmm import ESMM
 
 class TrainPipeline():
-    def __init__(self, config, run_eagerly=False):
+    def __init__(self, config, run_eagerly=None):
         self.config = config
         self.run_eagerly = run_eagerly
 
@@ -43,7 +44,7 @@ class TrainPipeline():
         if data_config["input_type"] == "CSVInput":
             train_ds = tf.data.experimental.make_csv_dataset(
                 self.config["train_input_path"], data_config["batch_size"], column_names=column_names,
-                column_defaults=column_defaults)
+                shuffle_buffer_size=100000, column_defaults=column_defaults)
         else:
             print(f"unexpected input_type: {data_config['input_type']}")
             sys.exit(1)
@@ -85,11 +86,16 @@ class TrainPipeline():
             model = DeepFM(self.config)
         elif model_type == "AFM":
             model = AFM(self.config)
+        elif model_type == "ESMM":
+            model = ESMM(self.config)
         else:
             print(f"unexpected model_type: {model_type}")
             sys.exit(1)
-        model.compile(optimizer=optimizer, loss=self.config["train_config"]["loss"],
-                      metrics=self.config["train_config"]["metrics"], run_eagerly=self.run_eagerly)
+        if model_type in ["ESMM"]:
+            model.compile(optimizer=optimizer, run_eagerly=self.run_eagerly)
+        else:
+            model.compile(optimizer=optimizer, loss=self.config["train_config"]["loss"],
+                          metrics=self.config["train_config"]["metrics"], run_eagerly=self.run_eagerly)
         return model
 
     def train(self):

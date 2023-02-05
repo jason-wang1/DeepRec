@@ -7,6 +7,7 @@ import itertools
 # afm 加权: 0.7295
 # deepfm: 0.7480
 
+print(0.1822/0.0051)
 dic1 = {'a':1, 'b':2}
 dic2 = {'b':22, 'd':4}
 # print(**dic1)
@@ -21,6 +22,10 @@ d = {(e, 0) for e in l}
 print(d)
 for e in itertools.combinations(l, 3):
     print(e)
+
+import pandas as pd
+sample_df = pd.read_csv("C:\\data\\Ali-CCP\\sample_train_100w.csv", header=None, iterator=True)
+sample_df = sample_df.read(50)
 
 s = "63133,6406,83237,1,95471,170.0"
 s2 = s.split(",", maxsplit=2)
@@ -44,25 +49,34 @@ res = bin_search(l, 2)
 
 # import pandas as pd
 # sample_df = pd.read_csv("C:\\data\\Ali-CCP\\sample_skeleton_train.csv")
-# with open("C:\\data\\Ali-CCP\\sample_skeleton_train.csv", 'rt', encoding='ascii') as f:
-#     for item in f:
-#         if item.endswith("\n"):
-#             item = item[:-1]
-#         feature_list = item.split(",")[-1]
-#         feature_list = feature_list.split(chr(1))
-#         l = []
-#         for e in feature_list:
-#             tmp = e.split(chr(2))
-#             tmp1 = tmp[1].split(chr(3))
-#             if tmp[0] in ["508", "509", "702", "853"]:
-#                 print((tmp[0], tmp1[0], tmp1[1]))
-#             l.append((tmp[0], tmp1[0], tmp1[1]))
-#         print(l)
-
-with open("C:\\data\\Ali-CCP\\common_features_train.csv", 'rt', encoding='ascii') as f:
-    d = {}
+d = {}
+max_feat = 0
+raw_feat = set()
+with open("C:\\data\\Ali-CCP\\sample_skeleton_train.csv", 'rt', encoding='ascii') as f:
     i = 0
-    max_feat = 0
+    for item in f:
+        i += 1
+        if i % 10000000 == 0:
+            print(f"{i / 10000000} * kw")
+        if item.endswith("\n"):
+            item = item[:-1]
+        item = item.split(",")
+        feature_list = item[-1]
+        feature_list = feature_list.split(chr(1))
+        for e in feature_list:
+            tmp = e.split(chr(2))
+            tmp1 = tmp[1].split(chr(3))
+            if tmp[0] not in d:
+                d[tmp[0]] = set()
+            d[tmp[0]].add(tmp1[0])
+            if int(tmp1[0]) > max_feat:
+                max_feat = int(tmp1[0])
+            if tmp1[1] != '1.0':
+                raw_feat.add(tmp[0])
+
+print("read common_features_train")
+with open("C:\\data\\Ali-CCP\\common_features_train.csv", 'rt', encoding='ascii') as f:
+    i = 0
     for item in f:
         i += 1
         if i % 100000 == 0:
@@ -81,6 +95,8 @@ with open("C:\\data\\Ali-CCP\\common_features_train.csv", 'rt', encoding='ascii'
             if int(tmp1[0]) > max_feat:
                 max_feat = int(tmp1[0])
             # l.append((tmp[0], tmp1[0], tmp1[1]))
+            if tmp1[1] != '1.0':
+                raw_feat.add(tmp[0])
         # print(l)
     s = set()
     pv = 0
@@ -91,6 +107,7 @@ with open("C:\\data\\Ali-CCP\\common_features_train.csv", 'rt', encoding='ascii'
     print(f"uv all feat len: {len(s)}")
     print(f"pv all feat len: {pv}")
     print(f"max feat len: {max_feat}")
+    print(f"raw_feat: {raw_feat}")
 # sample_df = pd.read_csv("C:\\data\\avazu-ctr-prediction\\train.csv", iterator=True)
 # sample_df = sample_df.read(5)
 # print(sample_df)
