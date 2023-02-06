@@ -33,11 +33,11 @@ class ESMM(Model):
     def build(self, input_shape):
         if self.data_encode_type == "v2":
             feat_id_num = self.config["feature_config"]["feat_id_num"]
-            pref_pad_num = self.config["feature_config"]["pref_pad_num"]
+            pad_num = self.config["feature_config"]["pad_num"]
             self.user_input_to_wide_emb = InputToWideEmbV2(
-                False, feat_id_num, self.emb_dim, self.user_feat_config, pref_pad_num, self.reg, name="user_input")
+                False, feat_id_num, self.emb_dim, self.user_feat_config, pad_num, self.reg, name="user_input")
             self.item_input_to_wide_emb = InputToWideEmbV2(
-                False, feat_id_num, self.emb_dim, self.item_feat_config, pref_pad_num, self.reg, name="item_input")
+                False, feat_id_num, self.emb_dim, self.item_feat_config, pad_num, self.reg, name="item_input")
         else:
             self.user_input_to_wide_emb = InputToWideEmb(self.emb_dim, self.user_feat_config, self.reg, name="user_input")
             self.item_input_to_wide_emb = InputToWideEmb(self.emb_dim, self.item_feat_config, self.reg, name="item_input")

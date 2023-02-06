@@ -37,15 +37,15 @@
   },
   "feature_config": {
     "feat_id_num": 10100000,
-    "pref_pad_num": 20,
+    "pad_num": 20,
     "features": [
       {"input_names": "click", "feature_type": "IdFeature"},
       {"input_names": "conversion", "feature_type": "IdFeature"},
       {"input_names": "101", "feature_type": "IdFeature"},
-      {"input_names": "109_14", "feature_type": "PrefFeature"},
-      {"input_names": "110_14", "feature_type": "PrefFeature"},
-      {"input_names": "127_14", "feature_type": "PrefFeature"},
-      {"input_names": "150_14", "feature_type": "PrefFeature"},
+      {"input_names": "109_14", "feature_type": "WeightTagFeature"},
+      {"input_names": "110_14", "feature_type": "WeightTagFeature"},
+      {"input_names": "127_14", "feature_type": "WeightTagFeature"},
+      {"input_names": "150_14", "feature_type": "WeightTagFeature"},
       {"input_names": "121", "feature_type": "IdFeature"},
       {"input_names": "122", "feature_type": "IdFeature"},
       {"input_names": "124", "feature_type": "IdFeature"},
@@ -58,10 +58,10 @@
       {"input_names": "206", "feature_type": "IdFeature"},
       {"input_names": "210", "feature_type": "TagFeature"},
       {"input_names": "216", "feature_type": "IdFeature"},
-      {"input_names": "508", "feature_type": "PrefFeature"},
-      {"input_names": "509", "feature_type": "PrefFeature"},
-      {"input_names": "702", "feature_type": "PrefFeature"},
-      {"input_names": "853", "feature_type": "PrefFeature"},
+      {"input_names": "508", "feature_type": "WeightTagFeature"},
+      {"input_names": "509", "feature_type": "WeightTagFeature"},
+      {"input_names": "702", "feature_type": "WeightTagFeature"},
+      {"input_names": "853", "feature_type": "WeightTagFeature"},
       {"input_names": "301", "feature_type": "IdFeature"}
     ]
   }

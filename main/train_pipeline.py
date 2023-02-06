@@ -1,5 +1,5 @@
 import sys
-
+from collections import OrderedDict
 import tensorflow as tf
 from tensorflow.python.keras import optimizers
 from tensorflow.keras.optimizers.schedules import ExponentialDecay
@@ -13,6 +13,29 @@ class TrainPipeline():
     def __init__(self, config, run_eagerly=None):
         self.config = config
         self.run_eagerly = run_eagerly
+
+    def map_weight_tag_feature(self, weight_tag_list, pad_num):
+        def func(tensor_dict):
+            for weight_tag in weight_tag_list:
+                tensor = tensor_dict[weight_tag]
+                tensor = tf.strings.split(tf.strings.split(tensor, "|"), ":")
+                tensor = tensor.to_tensor(shape=[None, pad_num, 2], default_value='0')
+                index, value = tf.split(tensor, num_or_size_splits=2, axis=2)
+                res = OrderedDict()
+                res["index"] = tf.squeeze(tf.strings.to_number(index, out_type=tf.int32), axis=2)
+                res["value"] = tf.squeeze(tf.strings.to_number(value, out_type=tf.float32), axis=2)
+                tensor_dict[weight_tag] = res
+            return tensor_dict
+        return func
+
+    def map_tag_feature(self, tag_list):
+        def func(tensor_dict):
+            for weight_tag in tag_list:
+                tensor = tensor_dict[weight_tag]
+                tensor = tf.strings.to_number(tf.strings.split(tensor, "|"), out_type=tf.int32)
+                tensor_dict[weight_tag] = tensor
+            return tensor_dict
+        return func
 
     def get_label(self, labels):
         def get_label(tensor_dict):
@@ -48,7 +71,14 @@ class TrainPipeline():
         else:
             print(f"unexpected input_type: {data_config['input_type']}")
             sys.exit(1)
-        train_ds = train_ds.map(self.get_label(data_config["label_fields"]))
+        weight_tag_list = [e["input_names"] for e in self.config["feature_config"]["features"] if e["feature_type"] == "WeightTagFeature"]
+        if weight_tag_list:
+            pad_num = self.config["feature_config"]["pad_num"]
+            train_ds = train_ds.map(self.map_weight_tag_feature(weight_tag_list, pad_num), num_parallel_calls=4)
+        tag_list = [e["input_names"] for e in self.config["feature_config"]["features"] if e["feature_type"] == "TagFeature"]
+        if tag_list:
+            train_ds = train_ds.map(self.map_tag_feature(tag_list), num_parallel_calls=4)
+        train_ds = train_ds.map(self.get_label(data_config["label_fields"]), num_parallel_calls=4)
         train_ds = train_ds.prefetch(data_config["prefetch_size"])
         return train_ds
 

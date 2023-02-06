@@ -15,9 +15,12 @@ with open(model_config_path) as f:
 
 config = {**data_config, **model_config}
 print(config)
-pipeline = TrainPipeline(config, run_eagerly=None)
+pipeline = TrainPipeline(config, run_eagerly=False)
 model = pipeline.train()
 model.summary()
 # ds = pipeline.read_data()
-# print(next(iter(ds)))
-
+# sample = next(iter(ds))
+# for k, v in sample[0].items():
+#     print(f"{k}: {v}")
+# print(sample[1])
+#
