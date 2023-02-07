@@ -37,3 +37,14 @@ class TwoTowerDeepFM(Model):
         pred = tf.reduce_sum(user_represent * item_represent, axis=1, keepdims=True)
         pred = tf.sigmoid(pred)
         return pred
+
+    def train_step(self, data):
+        x, y = data
+        with tf.GradientTape() as tape:
+            y_pred = self(x, training=True)  # Forward pass
+            loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
+        trainable_vars = self.trainable_variables
+        gradients = tape.gradient(loss, trainable_vars)
+        self.optimizer.apply_gradients(zip(gradients, trainable_vars))
+        self.compiled_metrics.update_state(y, y_pred)
+        return {m.name: m.result() for m in self.metrics}

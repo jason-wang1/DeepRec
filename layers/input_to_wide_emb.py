@@ -27,10 +27,10 @@ class InputToWideEmb(Layer):
         for feat in self.features_config:
             feat_name = feat["feature_name"] if "feature_name" in feat else feat["input_names"]
             self.input_to_emb_layer[feat_name] = []
-            if feat["feature_type"] == "TagFeature":
-                self.input_to_emb_layer[feat_name].append(Split("|"))
+            # if feat["feature_type"] == "TagFeature":
+            #     self.input_to_emb_layer[feat_name].append(Split("|"))
 
-            elif feat["feature_type"] == "ComboFeature" and isinstance(feat["input_names"], list):
+            if feat["feature_type"] == "ComboFeature" and isinstance(feat["input_names"], list):
                 self.input_to_emb_layer[feat_name].append(CategoryCrossing(name=f'cross_{feat_name}'))
 
             if "int_vocab_list" in feat:
@@ -69,17 +69,17 @@ class InputToWideEmb(Layer):
             if feat["feature_type"] == "ComboFeature":
                 tensor = [inputs[e] for e in feat["input_names"]]
             else:
-                tensor = inputs[feat["input_names"]]  # (batch_size, 1)
+                tensor = inputs[feat["input_names"]]  # (batch_size,)
             for layer in self.input_to_emb_layer[feat_name]:
                 if isinstance(layer, Embedding):
                     wide = tf.gather(self.wide_weight_layer[feat_name], tensor)
                     if feat["feature_type"] == "TagFeature":
-                        wide = tf.reduce_sum(wide, axis=2).to_tensor(shape=[None, 1])
-                    wide_list.append(wide)
+                        wide = tf.reduce_sum(wide, axis=1)
+                    wide_list.append(wide)  # (batch_size,)
                 tensor = layer(tensor)
             if feat["feature_type"] == "TagFeature":
-                tensor = tf.reduce_sum(tensor, axis=2).to_tensor()
-            embedding_list.append(tensor)  # (batch_size, 1, emb_size)
-        wide_tensor = tf.concat(wide_list, axis=1)  # (batch_size, feat_size)
-        emb_tensor = tf.concat(embedding_list, axis=1)  # (batch_size, feat_size, emb_size)
+                tensor = tf.reduce_sum(tensor, axis=1)
+            embedding_list.append(tensor)  # (batch_size, emb_size)
+        wide_tensor = tf.stack(wide_list, axis=1)  # (batch_size, feat_size)
+        emb_tensor = tf.stack(embedding_list, axis=1)  # (batch_size, feat_size, emb_size)
         return wide_tensor, emb_tensor
