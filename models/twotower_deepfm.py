@@ -25,8 +25,8 @@ class TwoTowerDeepFM(Model):
     def build(self, input_shape):
         self.user_input_to_wide_emb = InputToWideEmb(self.emb_dim, self.user_feat_config, self.reg, name="user_input")
         self.item_input_to_wide_emb = InputToWideEmb(self.emb_dim, self.item_feat_config, self.reg, name="item_input")
-        self.user_tower = TowerDeepFM("user", len(self.user_feat_config), self.emb_dim, self.dnn_shape, self.reg, name="user_tower")
-        self.item_tower = TowerDeepFM("item", len(self.item_feat_config), self.emb_dim, self.dnn_shape, self.reg, name="item_tower")
+        self.user_tower = TowerDeepFM("user", self.dnn_shape, self.reg, name="user_tower")
+        self.item_tower = TowerDeepFM("item", self.dnn_shape, self.reg, name="item_tower")
 
     def call(self, inputs, training=None, mask=None):
         user_wide_input, user_fm_input = self.user_input_to_wide_emb(inputs)

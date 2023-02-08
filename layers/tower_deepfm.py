@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.python.keras.layers import Layer
+from tensorflow.python.keras.layers import Layer, Flatten
 from layers.fm import FMLayer
 from layers.dnn import DNN
 import sys
@@ -14,10 +14,8 @@ class TowerDeepFM(Layer):
       Output shape
         - ``(batch_size, represent_vector_size)``
     """
-    def __init__(self, feature_group, feat_size, emb_dim, dnn_shape, reg, **kwargs):
+    def __init__(self, feature_group, dnn_shape, reg, **kwargs):
         self.feature_group = feature_group
-        self.feat_size = feat_size
-        self.emb_dim = emb_dim
         self.dnn_shape = dnn_shape
         self.reg = reg
         super(TowerDeepFM, self).__init__(**kwargs)
@@ -25,6 +23,7 @@ class TowerDeepFM(Layer):
     def build(self, input_shape):
         self.fm = FMLayer(name="fm")
         self.dnn = DNN(dnn_shape=self.dnn_shape, reg=self.reg, name="dnn")
+        self.flatten = Flatten()
         super(TowerDeepFM, self).build(input_shape)
 
     def call(self, inputs, training=None, **kwargs):
@@ -36,7 +35,7 @@ class TowerDeepFM(Layer):
         fm_output = self.fm(fm_input)  # (batch_size, 1)
         emb_vec_output = tf.reduce_sum(fm_input, axis=1)  # (batch_size, emb_size)
 
-        dnn_input = tf.reshape(fm_input, [-1, self.feat_size * self.emb_dim])
+        dnn_input = self.flatten(fm_input)
         dnn_output = self.dnn(dnn_input)  # (batch_size, user_deep_vector_size)
 
         wide_ones = tf.ones_like(wide_output)
