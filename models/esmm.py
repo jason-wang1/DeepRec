@@ -39,8 +39,8 @@ class ESMM(Model):
             self.item_input_to_wide_emb = InputToWideEmbV2(
                 False, feat_id_num, self.emb_dim, self.item_feat_config, pad_num, self.reg, name="item_input")
         else:
-            self.user_input_to_wide_emb = InputToWideEmb(self.emb_dim, self.user_feat_config, self.reg, name="user_input")
-            self.item_input_to_wide_emb = InputToWideEmb(self.emb_dim, self.item_feat_config, self.reg, name="item_input")
+            self.user_input_to_wide_emb = InputToWideEmb(False, self.emb_dim, self.user_feat_config, self.reg, name="user_input")
+            self.item_input_to_wide_emb = InputToWideEmb(False, self.emb_dim, self.item_feat_config, self.reg, name="item_input")
         self.ctr_tower = DNN(dnn_shape=self.dnn_shape, reg=self.reg, name="ctr_tower")
         self.cvr_tower = DNN(dnn_shape=self.dnn_shape, reg=self.reg, name="cvr_tower")
 

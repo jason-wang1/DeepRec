@@ -61,7 +61,7 @@ def read_ali_ccp_data():
                     else:
                         feats_dict[feat_field].append(feat_id)
                 for feat_field, feat_id_value in feats_dict.items():
-                    feats_dict[feat_field] = "|".join(feat_id_value)
+                    feats_dict[feat_field] = "|".join(feat_id_value[:20])
                 feats_dict = {**feats_dict, **index_feats_dict.get(index, {})}
                 feature = [feats_dict.get(e, '') for e in feat_name]
                 feature = ",".join(feature)

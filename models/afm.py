@@ -20,7 +20,7 @@ class AFM(Model):
         super(AFM, self).__init__(**kwargs)  # Be sure to call this somewhere!
 
     def build(self, input_shape):
-        self.input_to_wide_emb = InputToWideEmb(self.emb_dim, self.config["feature_config"]["features"], self.reg)
+        self.input_to_wide_emb = InputToWideEmb(True, self.emb_dim, self.config["feature_config"]["features"], self.reg)
         self.afm = AFMLayer(4, self.feat_size, self.reg, name="afm_layer")
         self.bias = self.add_weight(name='bias', shape=[1], initializer='zeros')
 
