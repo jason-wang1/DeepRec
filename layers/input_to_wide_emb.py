@@ -1,8 +1,18 @@
 import tensorflow as tf
 from tensorflow.python.keras.layers import Layer, Embedding, IntegerLookup, StringLookup, Hashing, CategoryCrossing, Lambda
+from layers.dnn import DNN
 
 
 class BaseInputLayer(Layer):
+    """
+      Input shape
+        - tensor with shape ``(batch_size, tag_num)`` or ``(batch_size,)``
+        - RaggedTensor with shape ``(batch_size, None)``
+
+      Output shape
+        - tensor with shape: ``(batch_size, tag_num, emb_dim)`` or ``(batch_size, emb_dim)``
+        - RaggedTensor with shape ``(batch_size, None, emb_dim)``
+    """
     def __init__(self, feat, emb_dim, reg, keep_wide, **kwargs):
         self.feat = feat
         self.emb_dim = emb_dim
@@ -32,8 +42,61 @@ class BaseInputLayer(Layer):
             self.wide_var = self.add_weight(
                 name=f'wide_{self.feat_name}', shape=[input_dim], initializer='glorot_normal', regularizer=self.reg, trainable=True)
 
+    def call(self, inputs, *args, **kwargs):
+        index = self.lookup(inputs)
+        deep = self.emb(index)
+        if self.keep_wide:
+            wide = tf.gather(self.wide_var, index)
+            return wide, deep
+        else:
+            return deep
 
-class WeightTagPoolingInput(BaseInputLayer):
+
+class AttentionSequencePoolingInput(Layer):
+    """
+      Input shape
+        - a list of tensor: [query, keys, keys_length]
+        - query: candidate item - 3D tensor with shape ``(batch_size, 1, m * emb_dim)``. len(feat_list) = m
+        - keys: user history seq -  a list of 2D tensor with shape ``(batch_size, pad_num)``
+        - keys_length: 1D tensor with shape ``(batch_size, )``
+
+      Output shape
+        - tensor with shape: ``(batch_size, 1, m * emb_dim)``.
+    """
+    def __init__(self, feat_list, emb_dim, reg=None, hidden_units=None, activation='sigmoid', pad_num=20, **kwargs):
+        if hidden_units is None:
+            hidden_units = [36, 1]
+        self.pad_num = pad_num
+        self.base_layer = [BaseInputLayer(feat, emb_dim, reg, False) for feat in feat_list]
+        self.dnn = DNN(hidden_units, reg, activation)
+        super(AttentionSequencePoolingInput, self).__init__(**kwargs)
+
+    def call(self, inputs, *args, **kwargs):
+        query_emb, keys, keys_length = inputs
+        # keys_length = keys.row_lengths(axis=1)  # (batch_size,)
+        keys_emb = []
+        for key, base_layer in zip(keys, self.base_layer):
+            keys_emb.append(base_layer(key))  # (batch_size, pad_num, emb_dim)
+        keys_emb = tf.concat(keys_emb, axis=-1)  # (batch_size, pad_num, m * emb_dim)
+        queries_emb = tf.tile(query_emb, [1, self.pad_num, 1])
+        att_input = tf.concat([queries_emb, keys_emb, queries_emb-keys_emb, query_emb*keys_emb],
+                              axis=-1)  # (batch_size, pad_num, 4 * m * emb_dim)
+        att_output = self.dnn(att_input)  # (batch_size, pad_num, 1)
+        att_output = tf.transpose(att_output, perm=[0, 2, 1])  # (batch_size, 1, pad_num)
+
+        # mask
+        key_masks = tf.sequence_mask(keys_length, self.pad_num)  # (batch_size, pad_num)
+        key_masks = tf.expand_dims(key_masks, axis=1)  # (batch_size, 1, pad_num)
+        padding = tf.ones_like(att_output) * (-2**32+1)
+        att_output = tf.where(key_masks, att_output, padding)
+
+        # scale
+        att_output = tf.math.softmax(att_output, axis=-1)
+        output = tf.matmul(att_output, keys_emb)  # (batch_size, 1, m * emb_dim)
+        return output
+
+
+class WeightTagPoolingInput(Layer):
     """
       Input shape
         - OrderedDict({"index": tensor with shape (batch_size, tag_num),
@@ -41,116 +104,107 @@ class WeightTagPoolingInput(BaseInputLayer):
 
       Output shape
         - wide tensor with shape: ``(batch_size,)``
-        - deep tensor with shape: ``(batch_size, emb_size)``.
+        - deep tensor with shape: ``(batch_size, emb_dim)``.
     """
     def __init__(self, feat, emb_dim, reg, keep_wide, **kwargs):
-        super(WeightTagPoolingInput, self).__init__(feat, emb_dim, reg, keep_wide, **kwargs)
+        self.keep_wide = keep_wide
+        self.base_layer = BaseInputLayer(feat, emb_dim, reg, keep_wide)
+        super(WeightTagPoolingInput, self).__init__(**kwargs)
 
     def call(self, inputs, training=None, **kwargs):
-        index = self.lookup(inputs['index'])
-        deep = self.emb(index) * tf.expand_dims(inputs['value'], axis=2)
-        deep = tf.reduce_sum(deep, axis=1)
         if self.keep_wide:
-            wide = tf.gather(self.wide_var, index)
+            wide, deep = self.base_layer(inputs['index'])
+            deep = deep * tf.expand_dims(inputs['value'], axis=2)
+            deep = tf.reduce_sum(deep, axis=1)
             wide = tf.reduce_sum(wide, axis=1)
             return wide, deep
         else:
+            deep = self.base_layer(inputs['index'])
+            deep = deep * tf.expand_dims(inputs['value'], axis=2)
+            deep = tf.reduce_sum(deep, axis=1)
             return deep
 
 
-class TagPoolingInput(BaseInputLayer):
+class TagPoolingInput(Layer):
     """
       Input shape
         - 2D RaggedTensor with shape ``(batch_size, None)``
 
       Output shape
         - wide tensor with shape: ``(batch_size,)``
-        - deep tensor with shape: ``(batch_size, emb_size)``.
+        - deep tensor with shape: ``(batch_size, emb_dim)``.
     """
     def __init__(self, feat, emb_dim, reg, keep_wide, **kwargs):
-        super(TagPoolingInput, self).__init__(feat, emb_dim, reg, keep_wide, **kwargs)
+        self.keep_wide = keep_wide
+        self.base_layer = BaseInputLayer(feat, emb_dim, reg, keep_wide)
+        super(TagPoolingInput, self).__init__(**kwargs)
 
     def call(self, inputs, training=None, **kwargs):
-        index = self.lookup(inputs)
-        deep = self.emb(index)
-        deep = tf.reduce_sum(deep, axis=1)
         if self.keep_wide:
-            wide = tf.gather(self.wide_var, index)
+            wide, deep = self.base_layer(inputs)
+            deep = tf.reduce_sum(deep, axis=1)
             wide = tf.reduce_sum(wide, axis=1)
             return wide, deep
         else:
+            deep = self.base_layer(inputs)
+            deep = tf.reduce_sum(deep, axis=1)
             return deep
 
 
-class IdInput(BaseInputLayer):
+class IdInput(Layer):
     """
       Input shape
         - 1D tensor with shape ``(batch_size,)``.
 
       Output shape
         - wide tensor with shape: ``(batch_size,)``
-        - deep tensor with shape: ``(batch_size, emb_size)``.
+        - deep tensor with shape: ``(batch_size, emb_dim)``.
     """
     def __init__(self, feat, emb_dim, reg, keep_wide, **kwargs):
-        super(IdInput, self).__init__(feat, emb_dim, reg, keep_wide, **kwargs)
+        self.base_layer = BaseInputLayer(feat, emb_dim, reg, keep_wide)
+        super(IdInput, self).__init__(**kwargs)
 
     def call(self, inputs, training=None, **kwargs):
-        index = self.lookup(inputs)
-        deep = self.emb(index)
-        if self.keep_wide:
-            wide = tf.gather(self.wide_var, index)
-            return wide, deep
-        else:
-            return deep
+        return self.base_layer(inputs)
 
 
-class RawInput(BaseInputLayer):
+class RawInput(Layer):
     """
       Input shape
         - 1D tensor with shape ``(batch_size,)``.
 
       Output shape
         - wide tensor with shape: ``(batch_size,)``
-        - deep tensor with shape: ``(batch_size, emb_size)``.
+        - deep tensor with shape: ``(batch_size, emb_dim)``.
     """
     def __init__(self, feat, emb_dim, reg, keep_wide, **kwargs):
-        super(RawInput, self).__init__(feat, emb_dim, reg, keep_wide, **kwargs)
+        self.base_layer = BaseInputLayer(feat, emb_dim, reg, keep_wide)
+        super(RawInput, self).__init__(**kwargs)
 
     def call(self, inputs, training=None, **kwargs):
-        index = self.lookup(inputs)
-        deep = self.emb(index)
-        if self.keep_wide:
-            wide = tf.gather(self.wide_var, index)
-            return wide, deep
-        else:
-            return deep
+        return self.base_layer(inputs)
 
 
-class ComboInput(BaseInputLayer):
+class ComboInput(Layer):
     """
       Input shape
         - a list of 1D tensor with shape ``(batch_size,)``.
 
       Output shape
         - wide tensor with shape: ``(batch_size,)``
-        - deep tensor with shape: ``(batch_size, emb_size)``.
+        - deep tensor with shape: ``(batch_size, emb_dim)``.
     """
     def __init__(self, feat, emb_dim, reg, keep_wide, **kwargs):
         feat_name = feat["feature_name"]
         self.cross = CategoryCrossing(name=f'cross_{feat_name}')
         self.squeeze = Lambda(lambda x: tf.squeeze(x, axis=1))
-        super(ComboInput, self).__init__(feat, emb_dim, reg, keep_wide, **kwargs)
+        self.base_layer = BaseInputLayer(feat, emb_dim, reg, keep_wide)
+        super(ComboInput, self).__init__(**kwargs)
 
     def call(self, inputs, training=None, **kwargs):
         tensor = self.cross(inputs)
         tensor = self.squeeze(tensor)
-        index = self.lookup(tensor)
-        deep = self.emb(index)
-        if self.keep_wide:
-            wide = tf.gather(self.wide_var, index)
-            return wide, deep
-        else:
-            return deep
+        return self.base_layer(tensor)
 
 
 class InputToWideEmb(Layer):
@@ -162,7 +216,7 @@ class InputToWideEmb(Layer):
       Output shape
         - a tuple: (wide_tensor, emb_tensor)
         wide_tensor shape ``(batch_size, feat_size)``
-        emb_tensor  shape ``(batch_size, feat_size, emb_size)``
+        emb_tensor  shape ``(batch_size, feat_size, emb_dim)``
     """
     def __init__(self, keep_wide, emb_dim, features_config, reg, **kwargs):
         self.keep_wide = keep_wide
@@ -201,8 +255,8 @@ class InputToWideEmb(Layer):
                 wide_list.append(wide)  # (batch_size,)
             else:
                 deep = layer(tensor)
-            embedding_list.append(deep)  # (batch_size, emb_size)
-        emb_tensor = tf.stack(embedding_list, axis=1)  # (batch_size, feat_size, emb_size)
+            embedding_list.append(deep)  # (batch_size, emb_dim)
+        emb_tensor = tf.stack(embedding_list, axis=1)  # (batch_size, feat_size, emb_dim)
         if self.keep_wide:
             wide_tensor = tf.stack(wide_list, axis=1)  # (batch_size, feat_size)
             return wide_tensor, emb_tensor

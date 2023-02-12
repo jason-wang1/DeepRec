@@ -30,6 +30,7 @@
     "input_type": "CSVInput"
   },
   "feature_config": {
+    "pad_num": 20,
     "features": [
       {"input_names": "pid", "feature_type": "IdFeature", "hash_bucket_size": 10, "embedding_dim": 16},
       {"input_names": "adgroup_id", "feature_type": "IdFeature", "hash_bucket_size": 100000, "embedding_dim": 16},

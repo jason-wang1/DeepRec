@@ -1,0 +1,31 @@
+{
+  "model_dir": "",
+  "model_config": {
+    "model_type": "DIN",
+    "feature_groups": {
+      "user": ["cms_segid", "cms_group_id", "age_level", "pvalue_level", "shopping_level", "occupation", "new_user_class_level"],
+      "item": ["brand", "cate_id", "campaign_id", "customer", "adgroup_id", "price", "pid"],
+      "din": ["tag_brand_list", "tag_category_list"]
+    },
+    "embedding_dim": 16,
+    "wide_output_dim": 16,
+    "din_hidden_units": [36, 1],
+    "deep_hidden_units": [128, 64, 32, 1],
+    "l2_reg": 0.0001
+  },
+  "train_config": {
+    "epochs": 20,
+    "steps_per_epoch":100,
+    "loss": "binary_crossentropy",
+    "metrics": ["AUC"],
+    "optimizer": {
+      "name": "adam",
+      "learning_rate": {
+          "schedule": "exponential_decay",
+          "initial_learning_rate": 0.0001,
+          "decay_steps": 10000,
+          "decay_rate": 0.5
+      }
+    }
+  }
+}

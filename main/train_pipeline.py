@@ -8,6 +8,7 @@ from models.deepfm import DeepFM
 from models.afm import AFM
 from models.fm import FM
 from models.esmm import ESMM
+from models.din import DIN
 
 class TrainPipeline():
     def __init__(self, config, run_eagerly=None):
@@ -118,6 +119,8 @@ class TrainPipeline():
             model = AFM(self.config)
         elif model_type == "ESMM":
             model = ESMM(self.config)
+        elif model_type == "DIN":
+            model = DIN(self.config)
         else:
             print(f"unexpected model_type: {model_type}")
             sys.exit(1)

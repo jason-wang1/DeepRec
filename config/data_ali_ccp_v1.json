@@ -1,5 +1,5 @@
 {
-  "train_input_path": "C:\\data\\Ali-CCP\\sample_train_100w.csv",
+  "train_input_path": "C:\\data\\Ali-CCP\\sample_train_300w.csv",
   "data_config": {
     "encode_type": "v1",
     "label_fields": ["click", "conversion"],
