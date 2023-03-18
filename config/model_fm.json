@@ -1,5 +1,5 @@
 {
-  "model_dir": "/home/wangbo/tf_model/time_",
+  "model_dir": "",
   "model_config": {
     "model_type": "FM",
     "embedding_dim": 16,
