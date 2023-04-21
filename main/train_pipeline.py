@@ -22,9 +22,8 @@ class TrainPipeline():
                 tensor = tf.strings.split(tf.strings.split(tensor, "|"), ":")
                 tensor = tensor.to_tensor(shape=[None, pad_num, 2], default_value='0')
                 index, value = tf.split(tensor, num_or_size_splits=2, axis=2)
-                res = OrderedDict()
-                res["index"] = tf.squeeze(tf.strings.to_number(index, out_type=tf.int32), axis=2)
-                res["value"] = tf.squeeze(tf.strings.to_number(value, out_type=tf.float32), axis=2)
+                res = {"index": tf.squeeze(tf.strings.to_number(index, out_type=tf.int32), axis=2),
+                       "value": tf.squeeze(tf.strings.to_number(value, out_type=tf.float32), axis=2)}
                 tensor_dict[weight_tag] = res
             return tensor_dict
         return func
@@ -72,6 +71,9 @@ class TrainPipeline():
         else:
             print(f"unexpected input_type: {data_config['input_type']}")
             sys.exit(1)
+        feature_label_list = [feature["input_names"] for feature in self.config["feature_config"]["features"]]
+        feature_label_list.extend(self.config["data_config"]["label_fields"])
+        train_ds = train_ds.map(self.map_feature(feature_label_list), num_parallel_calls=4)
         weight_tag_list = [e["input_names"] for e in self.config["feature_config"]["features"] if e["feature_type"] == "WeightTagFeature"]
         if weight_tag_list:
             pad_num = self.config["feature_config"]["pad_num"]
@@ -140,3 +142,11 @@ class TrainPipeline():
             steps_per_epoch=self.config["train_config"]["steps_per_epoch"],
         )
         return model
+
+    def map_feature(self, features):
+        def func(tensor_dict):
+            res = {}
+            for feature in features:
+                res[feature] = tensor_dict[feature]
+            return res
+        return func
