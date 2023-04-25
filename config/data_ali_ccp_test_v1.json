@@ -1,46 +1,34 @@
 {
-  "train_input_path": "..\\data\\ali_ccp_sample_train_1k.csv",
+  "train_input_path": "..\\data\\sample_test.csv",
   "data_config": {
     "encode_type": "v1",
     "label_fields": ["click", "conversion"],
     "input_fields": [
-      {"input_name": "sample_id", "input_type": "STRING", "default_val": "0"},
-      {"input_name": "click", "input_type": "INT32", "default_val": 0},
-      {"input_name": "conversion", "input_type": "INT32", "default_val": 0},
-      {"input_name": "101", "input_type": "INT32", "default_val": 0},
-      {"input_name": "109_14", "input_type": "STRING", "default_val": "0:0"},
-      {"input_name": "110_14", "input_type": "STRING", "default_val": "0:0"},
-      {"input_name": "127_14", "input_type": "STRING", "default_val": "0:0"},
-      {"input_name": "150_14", "input_type": "STRING", "default_val": "0:0"},
-      {"input_name": "121", "input_type": "INT32", "default_val": 0},
-      {"input_name": "122", "input_type": "INT32", "default_val": 0},
-      {"input_name": "124", "input_type": "INT32", "default_val": 0},
-      {"input_name": "125", "input_type": "INT32", "default_val": 0},
-      {"input_name": "126", "input_type": "INT32", "default_val": 0},
-      {"input_name": "127", "input_type": "INT32", "default_val": 0},
-      {"input_name": "128", "input_type": "INT32", "default_val": 0},
-      {"input_name": "129", "input_type": "INT32", "default_val": 0},
-      {"input_name": "205", "input_type": "INT32", "default_val": 0},
-      {"input_name": "206", "input_type": "INT32", "default_val": 0},
-      {"input_name": "207", "input_type": "INT32", "default_val": 0},
-      {"input_name": "210", "input_type": "STRING", "default_val": "0"},
-      {"input_name": "216", "input_type": "INT32", "default_val": 0},
-      {"input_name": "508", "input_type": "STRING", "default_val": "0:0"},
-      {"input_name": "509", "input_type": "STRING", "default_val": "0:0"},
-      {"input_name": "702", "input_type": "STRING", "default_val": "0:0"},
-      {"input_name": "853", "input_type": "STRING", "default_val": "0:0"},
-      {"input_name": "301", "input_type": "INT32", "default_val": 0}
+      {"input_name": "sample_id", "default_val": "0"},
+      {"input_name": "click", "default_val": 0},
+      {"input_name": "conversion", "default_val": 0},
+      {"input_name": "101", "default_val": 0},
+      {"input_name": "901", "default_val": 0.0},
+      {"input_name": "109_14", "default_val": ""},
+      {"input_name": "210", "default_val": ""},
+      {"input_name": "902", "default_val": ""},
+      {"input_name": "903", "default_val": ""},
+      {"input_name": "904", "default_val": ""}
     ],
-    "batch_size":128,
-    "prefetch_size": 10,
+    "batch_size":3,
+    "prefetch_size": 0,
     "input_type": "CSVInput"
   },
   "feature_config": {
     "pad_num": 5,
     "features": [
-      {"input_names": "101", "feature_type": "IdFeature", "hash_bucket_size": 100000},
-      {"input_names": "109_14", "feature_type": "WeightTagFeature", "hash_bucket_size": 10000},
-      {"input_names": "210", "feature_type": "TagFeature", "hash_bucket_size": 100000}
+      {"input_names": "101", "feature_type": "SingleFeature", "index_type": "int", "hash_bucket_size": 100000},
+      {"input_names": "901", "feature_type": "SingleFeature", "index_type": "float", "boundaries": [0.0, 0.2, 0.6, 1.0]},
+      {"input_names": "109_14", "feature_type": "WeightTagFeature", "index_type": "int", "hash_bucket_size": 10000},
+      {"input_names": "210", "feature_type": "TagFeature", "index_type": "int", "hash_bucket_size": 100000},
+      {"input_names": "902", "feature_type": "SingleFeature", "index_type": "string", "hash_bucket_size": 10000},
+      {"input_names": "903", "feature_type": "WeightTagFeature", "index_type": "string", "hash_bucket_size": 10000},
+      {"input_names": "904", "feature_type": "TagFeature", "index_type": "string", "hash_bucket_size": 10000}
     ]
   }
 }

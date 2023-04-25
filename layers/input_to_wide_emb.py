@@ -125,66 +125,6 @@ class WeightTagPoolingInput(Layer):
             return deep
 
 
-class TagPoolingInput(Layer):
-    """
-      Input shape
-        - 2D RaggedTensor with shape ``(batch_size, None)``
-
-      Output shape
-        - wide tensor with shape: ``(batch_size,)``
-        - deep tensor with shape: ``(batch_size, emb_dim)``.
-    """
-    def __init__(self, feat, emb_dim, reg, keep_wide, **kwargs):
-        self.keep_wide = keep_wide
-        self.base_layer = BaseInputLayer(feat, emb_dim, reg, keep_wide)
-        super(TagPoolingInput, self).__init__(**kwargs)
-
-    def call(self, inputs, training=None, **kwargs):
-        if self.keep_wide:
-            wide, deep = self.base_layer(inputs)
-            deep = tf.reduce_sum(deep, axis=1)
-            wide = tf.reduce_sum(wide, axis=1)
-            return wide, deep
-        else:
-            deep = self.base_layer(inputs)
-            deep = tf.reduce_sum(deep, axis=1)
-            return deep
-
-
-class IdInput(Layer):
-    """
-      Input shape
-        - 1D tensor with shape ``(batch_size,)``.
-
-      Output shape
-        - wide tensor with shape: ``(batch_size,)``
-        - deep tensor with shape: ``(batch_size, emb_dim)``.
-    """
-    def __init__(self, feat, emb_dim, reg, keep_wide, **kwargs):
-        self.base_layer = BaseInputLayer(feat, emb_dim, reg, keep_wide)
-        super(IdInput, self).__init__(**kwargs)
-
-    def call(self, inputs, training=None, **kwargs):
-        return self.base_layer(inputs)
-
-
-class RawInput(Layer):
-    """
-      Input shape
-        - 1D tensor with shape ``(batch_size,)``.
-
-      Output shape
-        - wide tensor with shape: ``(batch_size,)``
-        - deep tensor with shape: ``(batch_size, emb_dim)``.
-    """
-    def __init__(self, feat, emb_dim, reg, keep_wide, **kwargs):
-        self.base_layer = BaseInputLayer(feat, emb_dim, reg, keep_wide)
-        super(RawInput, self).__init__(**kwargs)
-
-    def call(self, inputs, training=None, **kwargs):
-        return self.base_layer(inputs)
-
-
 class ComboInput(Layer):
     """
       Input shape
@@ -228,14 +168,8 @@ class InputToWideEmb(Layer):
     def build(self, input_shape):
         self.layers = []
         for feat in self.features_config:
-            if feat["feature_type"] == "WeightTagFeature":
+            if feat["feature_type"] in {"WeightTagFeature", "TagFeature", "SingleFeature"}:
                 self.layers.append(WeightTagPoolingInput(feat, self.emb_dim, self.reg, self.keep_wide))
-            elif feat["feature_type"] == "TagFeature":
-                self.layers.append(TagPoolingInput(feat, self.emb_dim, self.reg, self.keep_wide))
-            elif feat["feature_type"] == "IdFeature":
-                self.layers.append(IdInput(feat, self.emb_dim, self.reg, self.keep_wide))
-            elif feat["feature_type"] == "RawFeature":
-                self.layers.append(RawInput(feat, self.emb_dim, self.reg, self.keep_wide))
             elif feat["feature_type"] == "ComboFeature" and isinstance(feat["input_names"], list):
                 self.layers.append(ComboInput(feat, self.emb_dim, self.reg, self.keep_wide))
             else:

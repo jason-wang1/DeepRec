@@ -15,27 +15,58 @@ class TrainPipeline():
         self.config = config
         self.run_eagerly = run_eagerly
 
-    def map_weight_tag_feature(self, weight_tag_list, pad_num):
+    def map_input(self, features):
         def func(tensor_dict):
-            for weight_tag in weight_tag_list:
-                tensor = tensor_dict[weight_tag]
-                tensor = tf.strings.split(tf.strings.split(tensor, "|"), ":")
-                tensor = tensor.to_tensor(shape=[None, pad_num, 2], default_value='0')
-                index, value = tf.split(tensor, num_or_size_splits=2, axis=2)
-                res = {"index": tf.squeeze(tf.strings.to_number(index, out_type=tf.int32), axis=2),
-                       "value": tf.squeeze(tf.strings.to_number(value, out_type=tf.float32), axis=2)}
-                tensor_dict[weight_tag] = res
-            return tensor_dict
+            res = {}
+            for feature in features:
+                res[feature] = tensor_dict[feature]
+            return res
         return func
 
-    def map_tag_feature(self, tag_list, pad_num):
-        def func(tensor_dict):
-            for weight_tag in tag_list:
-                tensor = tensor_dict[weight_tag]
-                tensor = tf.strings.to_number(tf.strings.split(tensor, "|"), out_type=tf.int32)
-                tensor = tensor.to_tensor(shape=[None, pad_num], default_value=0)
-                tensor_dict[weight_tag] = tensor
-            return tensor_dict
+    def map_feature(self, features, pad_num, batch_size):
+        def func(feature_tensor):
+            for feature in features:
+                if feature["feature_type"] == "WeightTagFeature":
+                    tensor = feature_tensor[feature["input_names"]]
+                    tensor = tf.strings.split(tf.strings.split(tensor, chr(1)), chr(2))
+                    tensor = tensor.to_tensor(shape=[None, pad_num, 2], default_value='')
+                    index, value = tf.split(tensor, num_or_size_splits=2, axis=2)
+                    index = tf.squeeze(index, axis=2)
+                    value = tf.squeeze(value, axis=2)
+                    emp_str = tf.constant('', shape=[batch_size, pad_num])
+                    value_0 = tf.equal(value, emp_str)
+                    value = tf.where(value_0, tf.constant('0', shape=[batch_size, pad_num]), value)
+                    value = tf.strings.to_number(value, out_type=tf.float32)
+                    if feature["index_type"] == "int":
+                        index = tf.where(tf.equal(index, emp_str), tf.constant('0', shape=[batch_size, pad_num]), index)
+                        index = tf.strings.to_number(index, out_type=tf.int32)
+                        res = {"index": index, "value": value}
+                    elif feature["index_type"] == "string":
+                        res = {"index": index, "value": value}
+                    else:
+                        raise ValueError(f"unexpected feature index_type{feature['index_type']}")
+                elif feature["feature_type"] == "TagFeature":
+                    index = feature_tensor[feature["input_names"]]
+                    index = tf.strings.split(index, chr(1))
+                    index = index.to_tensor(shape=[None, pad_num], default_value='')
+                    emp_str = tf.constant('', shape=[batch_size, pad_num])
+                    value_0 = tf.equal(index, emp_str)
+                    value = tf.where(value_0, tf.zeros_like(index, dtype=tf.float32), tf.ones_like(index, dtype=tf.float32))
+                    if feature["index_type"] == "int":
+                        index = tf.where(tf.equal(index, emp_str), tf.constant('0', shape=[batch_size, pad_num]), index)
+                        index = tf.strings.to_number(index, out_type=tf.int32)
+                        res = {"index": index, "value": value}
+                    elif feature["index_type"] == "string":
+                        res = {"index": index, "value": value}
+                    else:
+                        raise ValueError(f"unexpected feature index_type{feature['index_type']}")
+                else:
+                    index = feature_tensor[feature["input_names"]]
+                    index = tf.expand_dims(index, axis=1)
+                    res = {"index": index,
+                           "value": tf.ones_like(index, dtype=tf.float32)}
+                feature_tensor[feature["input_names"]] = res
+            return feature_tensor
         return func
 
     def get_label(self, labels):
@@ -68,20 +99,15 @@ class TrainPipeline():
         if data_config["input_type"] == "CSVInput":
             train_ds = tf.data.experimental.make_csv_dataset(
                 self.config["train_input_path"], data_config["batch_size"], column_names=column_names,
-                shuffle_buffer_size=100000, column_defaults=column_defaults)
+                shuffle=False, column_defaults=column_defaults)
         else:
             print(f"unexpected input_type: {data_config['input_type']}")
             sys.exit(1)
         feature_label_list = [feature["input_names"] for feature in self.config["feature_config"]["features"]]
         feature_label_list.extend(self.config["data_config"]["label_fields"])
-        train_ds = train_ds.map(self.map_feature(feature_label_list), num_parallel_calls=4)
-        weight_tag_list = [e["input_names"] for e in self.config["feature_config"]["features"] if e["feature_type"] == "WeightTagFeature"]
+        train_ds = train_ds.map(self.map_input(feature_label_list), num_parallel_calls=4)
         pad_num = self.config["feature_config"]["pad_num"]
-        if weight_tag_list:
-            train_ds = train_ds.map(self.map_weight_tag_feature(weight_tag_list, pad_num), num_parallel_calls=4)
-        tag_list = [e["input_names"] for e in self.config["feature_config"]["features"] if e["feature_type"] == "TagFeature"]
-        if tag_list:
-            train_ds = train_ds.map(self.map_tag_feature(tag_list, pad_num), num_parallel_calls=4)
+        train_ds = train_ds.map(self.map_feature(self.config["feature_config"]["features"], pad_num, data_config["batch_size"]), num_parallel_calls=4)
         train_ds = train_ds.map(self.get_label(data_config["label_fields"]), num_parallel_calls=4)
         train_ds = train_ds.prefetch(data_config["prefetch_size"])
         return train_ds
@@ -143,11 +169,3 @@ class TrainPipeline():
             steps_per_epoch=self.config["train_config"]["steps_per_epoch"],
         )
         return model
-
-    def map_feature(self, features):
-        def func(tensor_dict):
-            res = {}
-            for feature in features:
-                res[feature] = tensor_dict[feature]
-            return res
-        return func

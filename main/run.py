@@ -24,9 +24,8 @@ def train():
     model.summary()
     date_time = time.strftime("%Y-%m-%d %H%M%S", time.localtime())
     model.save(f"..\\output\\{date_time}\\model")
-    with open(f"..\\output\\{date_time}\\config.json", 'w', encoding='utf8') as f:
-        res = json.dumps(config)  # 序列化成json格式字符串
-        f.write(res)
+    with open(f"..\\output\\{date_time}\\config.json", 'w', encoding='utf-8') as f:
+        f.write(res_config)
 
 
 def print_train_data():
@@ -35,12 +34,12 @@ def print_train_data():
     for k, v in sample[0].items():
         print(f"{k}: {v}")
     print(sample[1])
-    print(sample)
 
 
 if __name__ == '__main__':
     config = get_config()
+    res_config = json.dumps(config)  # 序列化成json格式字符串
+    pipeline = TrainPipeline(config, run_eagerly=True)
+    print_train_data()
+    # train()
     print(config)
-    pipeline = TrainPipeline(config, run_eagerly=False)
-    # print_train_data()
-    train()
