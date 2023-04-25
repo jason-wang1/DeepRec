@@ -4,12 +4,11 @@ from tensorflow.python.keras.regularizers import l1, l2
 from tensorflow.python.keras import losses, metrics
 from layers.dnn import DNN
 from layers.input_to_wide_emb import InputToWideEmb
-from layers.input_to_wide_emb_v2 import InputToWideEmbV2
+
 
 class ESMM(Model):
     def __init__(self, config, **kwargs):
         self.config = config
-        self.data_encode_type = config["data_config"]["encode_type"]
         user_feat_list = config["model_config"]["feature_groups"]["user"]
         item_feat_list = config["model_config"]["feature_groups"]["item"]
         self.user_feat_config = [e for e in config["feature_config"]["features"] if e["input_names"] in user_feat_list]
@@ -34,16 +33,8 @@ class ESMM(Model):
         self.ctcvr_auc = metrics.AUC(name="ctcvr_auc")
 
     def build(self, input_shape):
-        if self.data_encode_type == "v2":
-            feat_id_num = self.config["feature_config"]["feat_id_num"]
-            pad_num = self.config["feature_config"]["pad_num"]
-            self.user_input_to_wide_emb = InputToWideEmbV2(
-                False, feat_id_num, self.emb_dim, self.user_feat_config, pad_num, self.reg, name="user_input")
-            self.item_input_to_wide_emb = InputToWideEmbV2(
-                False, feat_id_num, self.emb_dim, self.item_feat_config, pad_num, self.reg, name="item_input")
-        else:
-            self.user_input_to_wide_emb = InputToWideEmb(False, self.emb_dim, self.user_feat_config, self.reg, name="user_input")
-            self.item_input_to_wide_emb = InputToWideEmb(False, self.emb_dim, self.item_feat_config, self.reg, name="item_input")
+        self.user_input_to_wide_emb = InputToWideEmb(False, self.emb_dim, self.user_feat_config, self.reg, name="user_input")
+        self.item_input_to_wide_emb = InputToWideEmb(False, self.emb_dim, self.item_feat_config, self.reg, name="item_input")
         self.ctr_tower = DNN(dnn_shape=self.dnn_shape, reg=self.reg, name="ctr_tower")
         self.cvr_tower = DNN(dnn_shape=self.dnn_shape, reg=self.reg, name="cvr_tower")
 
