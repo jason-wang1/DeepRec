@@ -1,10 +1,10 @@
 {
-  "model_dir": "",
   "model_config": {
     "model_type": "ESMM",
     "feature_groups": {
-      "user": ["101", "109_14", "110_14", "127_14", "150_14", "121", "122", "124", "125", "126", "127", "128", "129"],
-      "item": ["205", "206", "207", "210", "216"]
+      "user": ["101", "901", "109_14", "903"],
+      "item": ["210", "902", "904"],
+      "cross": [{"input_names": ["101", "902"], "hash_bucket_size": 100000}]
     },
     "embedding_dim": 16,
     "wide_output_dim": 16,
@@ -12,7 +12,7 @@
     "l2_reg": 0.0001
   },
   "train_config": {
-    "epochs": 10,
+    "epochs": 2,
     "steps_per_epoch":100,
     "loss": ["binary_crossentropy", "binary_crossentropy"],
     "metrics": ["AUC"],

@@ -6,12 +6,10 @@ from layers.dnn import DNN
 class BaseInputLayer(Layer):
     """
       Input shape
-        - tensor with shape ``(batch_size, tag_num)`` or ``(batch_size,)``
-        - RaggedTensor with shape ``(batch_size, None)``
+        - tensor with shape ``(batch_size, tag_num)``
 
       Output shape
-        - tensor with shape: ``(batch_size, tag_num, emb_dim)`` or ``(batch_size, emb_dim)``
-        - RaggedTensor with shape ``(batch_size, None, emb_dim)``
+        - tensor with shape: ``(batch_size, tag_num, emb_dim)``
     """
     def __init__(self, feat, emb_dim, reg, keep_wide, **kwargs):
         self.feat = feat
@@ -128,7 +126,8 @@ class WeightTagPoolingInput(Layer):
 class ComboInput(Layer):
     """
       Input shape
-        - a list of 1D tensor with shape ``(batch_size,)``.
+        - a dict: {"index": tensor with shape (batch_size, tag_num),
+                   "value": tensor with shape (batch_size, tag_num)}
 
       Output shape
         - wide tensor with shape: ``(batch_size,)``
@@ -142,9 +141,13 @@ class ComboInput(Layer):
         super(ComboInput, self).__init__(**kwargs)
 
     def call(self, inputs, training=None, **kwargs):
-        tensor = self.cross(inputs)
-        tensor = self.squeeze(tensor)
-        return self.base_layer(tensor)
+        indexes = [tensor_dict["index"] for tensor_dict in inputs]
+        index = self.cross(indexes)
+        index = self.base_layer(index)
+        index = tf.reduce_sum(index, axis=1)
+        value = inputs[0]["value"] * inputs[0]["value"]
+        tensor = index * value
+        return tensor
 
 
 class InputToWideEmb(Layer):
@@ -158,19 +161,28 @@ class InputToWideEmb(Layer):
         wide_tensor shape ``(batch_size, feat_size)``
         emb_tensor  shape ``(batch_size, feat_size, emb_dim)``
     """
-    def __init__(self, keep_wide, emb_dim, features_config, reg, **kwargs):
+    def __init__(self, keep_wide, emb_dim, feat_list, input_attributes, reg, **kwargs):
         self.keep_wide = keep_wide
         self.emb_dim = emb_dim
-        self.features_config = features_config
+        self.features_config = []
+        for input_feature in feat_list:
+            if isinstance(input_feature, dict):
+                feature = input_feature
+                feature["feature_name"] = input_feature["input_names"][0] + "_" + input_feature["input_names"][1] + "_cross"
+                feature["field_type"] = "ComboFeature"
+            else:
+                feature = {"input_names": input_feature}
+                feature.update(input_attributes[input_feature])
+            self.features_config.append(feature)
         self.reg = reg
         super(InputToWideEmb, self).__init__(**kwargs)
 
     def build(self, input_shape):
         self.layers = []
         for feat in self.features_config:
-            if feat["feature_type"] in {"WeightTagFeature", "TagFeature", "SingleFeature"}:
+            if feat["field_type"] in {"WeightTagFeature", "TagFeature", "SingleFeature"}:
                 self.layers.append(WeightTagPoolingInput(feat, self.emb_dim, self.reg, self.keep_wide))
-            elif feat["feature_type"] == "ComboFeature" and isinstance(feat["input_names"], list):
+            elif feat["field_type"] == "ComboFeature" and isinstance(feat["input_names"], list):
                 self.layers.append(ComboInput(feat, self.emb_dim, self.reg, self.keep_wide))
             else:
                 raise ValueError(f"unexpected feature_type: {feat['feature_type']}")
@@ -180,7 +192,7 @@ class InputToWideEmb(Layer):
         embedding_list = []
         wide_list = []
         for feat, layer in zip(self.features_config, self.layers):
-            if feat["feature_type"] == "ComboFeature":
+            if feat["field_type"] == "ComboFeature":
                 tensor = [inputs[e] for e in feat["input_names"]]
             else:
                 tensor = inputs[feat["input_names"]]  # (batch_size,)

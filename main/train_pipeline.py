@@ -1,4 +1,5 @@
 import sys
+from collections import OrderedDict
 import json
 import tensorflow as tf
 from tensorflow.python.keras import optimizers
@@ -15,17 +16,17 @@ class TrainPipeline:
     def __init__(self, data_config_path, model_config_path, run_eagerly=None):
         with open(data_config_path) as f:
             config_str = f.read()
-            data_config = json.loads(config_str)
+            data_config = json.loads(config_str, object_pairs_hook=OrderedDict)
         with open(model_config_path) as f:
             config_str = f.read()
-            model_config = json.loads(config_str)
+            model_config = json.loads(config_str, object_pairs_hook=OrderedDict)
         self.config = {**data_config, **model_config}
         self.config_str = json.dumps(self.config)
         self.run_eagerly = run_eagerly
 
     def map_sample(self):
-        features = self.config["feature_config"]["features"]
-        pad_num = self.config["feature_config"]["pad_num"]
+        feature_fields = self.config["data_config"]["feature_fields"]
+        input_attributes = self.config["data_config"]["input_attributes"]
         batch_size = self.config["data_config"]["batch_size"]
 
         def get_label(tensor_dict):
@@ -46,9 +47,10 @@ class TrainPipeline:
 
         def func(sample_tensor_dict):
             feature_dict = {}
-            for feature in features:
-                if feature["feature_type"] == "WeightTagFeature":
-                    tensor = sample_tensor_dict[feature["input_names"]]
+            for feature in feature_fields:
+                tensor = sample_tensor_dict[feature]
+                if input_attributes[feature]["field_type"] == "WeightTagFeature":
+                    pad_num = input_attributes[feature]["pad_num"]
                     tensor = tf.strings.split(tf.strings.split(tensor, chr(1)), chr(2))
                     tensor = tensor.to_tensor(shape=[None, pad_num, 2], default_value='')
                     index, value = tf.split(tensor, num_or_size_splits=2, axis=2)
@@ -58,51 +60,72 @@ class TrainPipeline:
                     value_0 = tf.equal(value, emp_str)
                     value = tf.where(value_0, tf.constant('0', shape=[batch_size, pad_num]), value)
                     value = tf.strings.to_number(value, out_type=tf.float32)
-                    if feature["index_type"] == "int":
+                    if input_attributes[feature]["index_type"] == "int":
                         index = tf.where(tf.equal(index, emp_str), tf.constant('0', shape=[batch_size, pad_num]), index)
                         index = tf.strings.to_number(index, out_type=tf.int32)
                         res = {"index": index, "value": value}
-                    elif feature["index_type"] == "string":
+                    elif input_attributes[feature]["index_type"] == "string":
                         res = {"index": index, "value": value}
                     else:
                         raise ValueError(f"unexpected feature index_type{feature['index_type']}")
-                elif feature["feature_type"] == "TagFeature":
-                    index = sample_tensor_dict[feature["input_names"]]
-                    index = tf.strings.split(index, chr(1))
+                elif input_attributes[feature]["field_type"] == "TagFeature":
+                    pad_num = input_attributes[feature]["pad_num"]
+                    index = tf.strings.split(tensor, chr(1))
                     index = index.to_tensor(shape=[None, pad_num], default_value='')
                     emp_str = tf.constant('', shape=[batch_size, pad_num])
                     value_0 = tf.equal(index, emp_str)
                     value = tf.where(value_0, tf.zeros_like(index, dtype=tf.float32),
                                      tf.ones_like(index, dtype=tf.float32))
-                    if feature["index_type"] == "int":
+                    if input_attributes[feature]["index_type"] == "int":
                         index = tf.where(tf.equal(index, emp_str), tf.constant('0', shape=[batch_size, pad_num]), index)
                         index = tf.strings.to_number(index, out_type=tf.int32)
                         res = {"index": index, "value": value}
-                    elif feature["index_type"] == "string":
+                    elif input_attributes[feature]["index_type"] == "string":
                         res = {"index": index, "value": value}
                     else:
-                        raise ValueError(f"unexpected feature index_type{feature['index_type']}")
+                        raise ValueError(f"unexpected feature index_type{input_attributes[feature]['index_type']}")
                 else:
-                    index = sample_tensor_dict[feature["input_names"]]
-                    index = tf.expand_dims(index, axis=1)
+                    index = tf.expand_dims(tensor, axis=1)
                     res = {"index": index, "value": tf.ones_like(index, dtype=tf.float32)}
-                feature_dict[feature["input_names"]] = res
+                feature_dict[feature] = res
             return feature_dict, get_label(sample_tensor_dict)
 
         return func
 
+    def get_default_value(self):
+        input_attributes = self.config["data_config"]["input_attributes"]
+        column_defaults = []
+        for input_field, input_attribute in input_attributes.items():
+            if input_attribute["field_type"] == "ClassLabel":
+                column_defaults.append(0)
+            elif input_attribute["field_type"] == "ContinuousLabel":
+                column_defaults.append(0.0)
+            elif input_attribute["field_type"] in ["WeightTagFeature", "TagFeature"]:
+                column_defaults.append("")
+            elif input_attribute["field_type"] == "SingleFeature":
+                if input_attribute["index_type"] == "int":
+                    column_defaults.append(0)
+                elif input_attribute["index_type"] == "float":
+                    column_defaults.append(0.0)
+                elif input_attribute["index_type"] == "string":
+                    column_defaults.append("")
+                else:
+                    raise ValueError(f"unexpected field_type: {input_attribute['field_type']}")
+            else:
+                raise ValueError(f"unexpected field_type: {input_attribute['field_type']}")
+        return column_defaults
+
     def read_data(self):
         data_config = self.config["data_config"]
-        input_fields = data_config["input_fields"]
-        column_names = [e["input_name"] for e in input_fields]
-        column_defaults = [e["default_val"] for e in input_fields]
+        input_fields = [input_field for input_field in data_config["input_attributes"]]
+        print(f"input_fields: {input_fields}")
+        column_defaults = self.get_default_value()
         if data_config["input_type"] == "CSVInput":
             train_ds = tf.data.experimental.make_csv_dataset(
-                self.config["train_input_path"], data_config["batch_size"], column_names=column_names,
+                self.config["train_input_path"], data_config["batch_size"], column_names=input_fields,
                 shuffle=False, column_defaults=column_defaults)
         else:
-            print(f"unexpected input_type: {data_config['input_type']}")
-            sys.exit(1)
+            raise ValueError(f"unexpected input_type: {data_config['input_type']}")
         train_ds = train_ds.map(self.map_sample(), num_parallel_calls=4)
         train_ds = train_ds.prefetch(data_config["prefetch_size"])
         return train_ds

@@ -1,34 +1,22 @@
 {
   "train_input_path": "..\\data\\sample_test.csv",
   "data_config": {
-    "encode_type": "v1",
     "label_fields": ["click", "conversion"],
-    "input_fields": [
-      {"input_name": "sample_id", "default_val": "0"},
-      {"input_name": "click", "default_val": 0},
-      {"input_name": "conversion", "default_val": 0},
-      {"input_name": "101", "default_val": 0},
-      {"input_name": "901", "default_val": 0.0},
-      {"input_name": "109_14", "default_val": ""},
-      {"input_name": "210", "default_val": ""},
-      {"input_name": "902", "default_val": ""},
-      {"input_name": "903", "default_val": ""},
-      {"input_name": "904", "default_val": ""}
-    ],
+    "feature_fields": ["101", "901", "109_14", "210", "902", "903", "904"],
+    "input_attributes": {
+      "sample_id": {"field_type": "SingleFeature", "index_type": "int"},
+      "click": {"field_type": "ClassLabel"},
+      "conversion": {"field_type": "ClassLabel"},
+      "101": {"field_type": "SingleFeature", "index_type": "int", "hash_bucket_size": 100000},
+      "901": {"field_type": "SingleFeature", "index_type": "float", "boundaries": [0.0, 0.2, 0.6, 1.0]},
+      "109_14": {"field_type": "WeightTagFeature", "index_type": "int", "hash_bucket_size": 10000, "pad_num": 5},
+      "210": {"field_type": "TagFeature", "index_type": "int", "hash_bucket_size": 100000, "pad_num": 5},
+      "902": {"field_type": "SingleFeature", "index_type": "string", "hash_bucket_size": 10000},
+      "903": {"field_type": "WeightTagFeature", "index_type": "string", "hash_bucket_size": 10000, "pad_num": 5},
+      "904": {"field_type": "TagFeature", "index_type": "string", "hash_bucket_size": 10000, "pad_num": 5}
+    },
     "batch_size":3,
     "prefetch_size": 0,
     "input_type": "CSVInput"
-  },
-  "feature_config": {
-    "pad_num": 5,
-    "features": [
-      {"input_names": "101", "feature_type": "SingleFeature", "index_type": "int", "hash_bucket_size": 100000},
-      {"input_names": "901", "feature_type": "SingleFeature", "index_type": "float", "boundaries": [0.0, 0.2, 0.6, 1.0]},
-      {"input_names": "109_14", "feature_type": "WeightTagFeature", "index_type": "int", "hash_bucket_size": 10000},
-      {"input_names": "210", "feature_type": "TagFeature", "index_type": "int", "hash_bucket_size": 100000},
-      {"input_names": "902", "feature_type": "SingleFeature", "index_type": "string", "hash_bucket_size": 10000},
-      {"input_names": "903", "feature_type": "WeightTagFeature", "index_type": "string", "hash_bucket_size": 10000},
-      {"input_names": "904", "feature_type": "TagFeature", "index_type": "string", "hash_bucket_size": 10000}
-    ]
   }
 }
