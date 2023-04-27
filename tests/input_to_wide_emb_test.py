@@ -45,10 +45,10 @@ class InputToWideEmbTest(tf.test.TestCase):
         self.assertShapeEqual(deep_shape, deep)
 
     def test_comb_input(self):
-        inputs = [tf.constant([b'x', b'y', b'z']),
-                  tf.constant([b'1', b'2', b'3'])]
+        inputs = [{"index": tf.constant([[b'x'], [b'y'], [b'z']]), "value": tf.constant([[1.0], [1.0], [1.0]])},
+                  {"index": tf.constant([[b'1'], [b'2'], [b'3']]), "value": tf.constant([[1.0], [1.0], [1.0]])}]
         print(inputs)
-        feat = {"input_names": ["site_id", "app_id"], "feature_name": "site_id_app_id", "feature_type": "ComboFeature", "hash_bucket_size": 1000}
+        feat = {"input_names": ["site_id", "app_id"], "feature_name": "site_id_app_id_cross", "feature_type": "ComboFeature", "hash_bucket_size": 1000}
         emb_dim = 16
         layer = ComboInput(feat, emb_dim, None, True)
         wide, deep = layer(inputs)

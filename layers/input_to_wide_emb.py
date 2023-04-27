@@ -9,7 +9,8 @@ class BaseInputLayer(Layer):
         - tensor with shape ``(batch_size, tag_num)``
 
       Output shape
-        - tensor with shape: ``(batch_size, tag_num, emb_dim)``
+        - wide tensor with shape: ``(batch_size, tag_num)``
+        - deep tensor with shape: ``(batch_size, tag_num, emb_dim)``
     """
     def __init__(self, feat, emb_dim, reg, keep_wide, **kwargs):
         self.feat = feat
@@ -134,6 +135,7 @@ class ComboInput(Layer):
         - deep tensor with shape: ``(batch_size, emb_dim)``.
     """
     def __init__(self, feat, emb_dim, reg, keep_wide, **kwargs):
+        self.keep_wide = keep_wide
         feat_name = feat["feature_name"]
         self.cross = CategoryCrossing(name=f'cross_{feat_name}')
         self.squeeze = Lambda(lambda x: tf.squeeze(x, axis=1))
@@ -143,11 +145,19 @@ class ComboInput(Layer):
     def call(self, inputs, training=None, **kwargs):
         indexes = [tensor_dict["index"] for tensor_dict in inputs]
         index = self.cross(indexes)
-        index = self.base_layer(index)
-        index = tf.reduce_sum(index, axis=1)
-        value = inputs[0]["value"] * inputs[0]["value"]
-        tensor = index * value
-        return tensor
+        value = inputs[0]["value"] * inputs[1]["value"]
+        if self.keep_wide:
+            wide_index, deep_index = self.base_layer(index)
+            wide_tensor = wide_index * value
+            wide_tensor = tf.reduce_sum(wide_tensor, axis=1)
+            deep_index = tf.reduce_sum(deep_index, axis=1)
+            deep_tensor = deep_index * value
+            return wide_tensor, deep_tensor
+        else:
+            deep_index = self.base_layer(index)
+            deep_index = tf.reduce_sum(deep_index, axis=1)
+            tensor = deep_index * value
+            return tensor
 
 
 class InputToWideEmb(Layer):
