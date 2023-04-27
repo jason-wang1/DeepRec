@@ -9,9 +9,7 @@ from layers.input_to_wide_emb import InputToWideEmb
 class ESMM(Model):
     def __init__(self, config, **kwargs):
         self.config = config
-        self.user_feat_list = config["model_config"]["feature_groups"]["user"]
-        self.item_feat_list = config["model_config"]["feature_groups"]["item"]
-        self.cross_feat_list = config["model_config"]["feature_groups"]["cross"]
+        self.feature_group_list = [(group_name + "_input", group) for group_name, group in config["model_config"]["feature_groups"].items()]
         self.input_attributes = config["data_config"]["input_attributes"]
         self.emb_dim = config["model_config"]["embedding_dim"]
         self.dnn_shape = config["model_config"]["deep_hidden_units"]
@@ -33,20 +31,16 @@ class ESMM(Model):
 
     def build(self, input_shape):
         # "cross": [{"input_names": ["101", "902"], "hash_bucket_size": 100000}]
-        self.user_input_to_wide_emb = InputToWideEmb(False, self.emb_dim, self.user_feat_list, self.input_attributes, self.reg, name="user_input")
-        self.item_input_to_wide_emb = InputToWideEmb(False, self.emb_dim, self.item_feat_list, self.input_attributes, self.reg, name="item_input")
-        self.cross_input_to_wide_emb = InputToWideEmb(False, self.emb_dim, self.cross_feat_list, self.input_attributes, self.reg, name="cross_input")
+        self.input_to_wide_emb_list = [InputToWideEmb(False, self.emb_dim, group, self.input_attributes, self.reg, name=group_name) for group_name, group in self.feature_group_list]
         self.ctr_tower = DNN(dnn_shape=self.dnn_shape, reg=self.reg, name="ctr_tower")
         self.cvr_tower = DNN(dnn_shape=self.dnn_shape, reg=self.reg, name="cvr_tower")
 
     def call(self, inputs, training=None, mask=None):
-        user_emb_tensor = self.user_input_to_wide_emb(inputs)
-        item_emb_tensor = self.item_input_to_wide_emb(inputs)
-        cross_emb_tensor = self.cross_input_to_wide_emb(inputs)
-        user = tf.reduce_sum(user_emb_tensor, axis=1)  # (batch_size, emb_size)
-        item = tf.reduce_sum(item_emb_tensor, axis=1)  # (batch_size, emb_size)
-        cross = tf.reduce_sum(cross_emb_tensor, axis=1)  # (batch_size, emb_size)
-        dnn_input = tf.concat([user, item, cross], axis=1)  # (batch_size, 2 * emb_size)
+        emb_tensor_list = []
+        for input_to_wide_emb in self.input_to_wide_emb_list:
+            emb_tensor = tf.reduce_sum(input_to_wide_emb(inputs), axis=1)  # (batch_size, emb_size)
+            emb_tensor_list.append(emb_tensor)
+        dnn_input = tf.concat(emb_tensor_list, axis=1)  # (batch_size, feat_group_size * emb_size)
         ctr_pred = self.ctr_tower(dnn_input)  # (batch_size, 1)
         ctr_pred = tf.squeeze(tf.sigmoid(ctr_pred), axis=1)
         cvr_pred = self.cvr_tower(dnn_input)  # (batch_size, 1)
