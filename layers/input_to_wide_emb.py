@@ -176,14 +176,16 @@ class InputToWideEmb(Layer):
         self.emb_dim = emb_dim
         self.features_config = []
         for input_feature in feat_list:
-            if isinstance(input_feature, dict):
-                feature = input_feature
-                feature["feature_name"] = input_feature["input_names"][0] + "_" + input_feature["input_names"][1] + "_cross"
+            feature = input_feature
+            if isinstance(input_feature["input_names"], list):
+                feature["feature_name"] = "_".join(input_feature["input_names"]) + "_cross"
                 feature["field_type"] = "ComboFeature"
+            elif isinstance(input_feature["input_names"], str):
+                feature.update(input_attributes[input_feature["input_names"]])
             else:
-                feature = {"input_names": input_feature}
-                feature.update(input_attributes[input_feature])
+                raise ValueError(f"unexpected input_names: {input_feature['input_names']}")
             self.features_config.append(feature)
+        print(self.features_config)
         self.reg = reg
         super(InputToWideEmb, self).__init__(**kwargs)
 

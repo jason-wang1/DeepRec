@@ -2,12 +2,22 @@
   "model_config": {
     "model_type": "ESMM",
     "feature_groups": {
-      "user": ["101", "901", "109_14", "903"],
-      "item": ["210", "902", "904"],
-      "cross": [{"input_names": ["101", "902"], "hash_bucket_size": 100000}]
+      "user": [
+        {"input_names": "101", "hash_bucket_size": 100000},
+        {"input_names": "901", "boundaries": [0.0, 0.2, 0.6, 1.0]},
+        {"input_names": "109_14", "hash_bucket_size": 10000},
+        {"input_names": "903", "hash_bucket_size": 10000}
+      ],
+      "item": [
+        {"input_names": "210", "hash_bucket_size": 100000},
+        {"input_names": "902", "hash_bucket_size": 100000},
+        {"input_names": "904", "hash_bucket_size": 1000}
+      ],
+      "cross": [
+        {"input_names": ["101", "902"], "hash_bucket_size": 100000}
+      ]
     },
     "embedding_dim": 16,
-    "wide_output_dim": 16,
     "deep_hidden_units": [128, 64, 32, 8, 1],
     "l2_reg": 0.0001
   },
