@@ -1,7 +1,7 @@
 {
   "train_input_path": "..\\data\\sample_test.csv",
   "data_config": {
-    "label_fields": ["click", "conversion"],
+    "label_fields": ["click"],
     "feature_fields": ["101", "901", "109_14", "210", "902", "903", "904"],
     "input_attributes": {
       "sample_id": {"field_type": "SingleFeature", "index_type": "int"},

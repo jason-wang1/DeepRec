@@ -1,26 +1,14 @@
+from models.base import Base
 import tensorflow as tf
-from tensorflow.python.keras.models import Model
-from tensorflow.python.keras.regularizers import l1, l2
 from tensorflow.python.keras import losses, metrics
 from layers.dnn import DNN
 from layers.input_to_wide_emb import InputToWideEmb
 
 
-class ESMM(Model):
+class ESMM(Base):
     def __init__(self, config, **kwargs):
-        self.config = config
-        self.feature_group_list = [(group_name + "_input", group) for group_name, group in config["model_config"]["feature_groups"].items()]
-        self.input_attributes = config["data_config"]["input_attributes"]
-        self.emb_dim = config["model_config"]["embedding_dim"]
         self.dnn_shape = config["model_config"]["deep_hidden_units"]
-        if "l2_reg" in config["model_config"]:
-            self.reg = l2(config["model_config"]["l2_reg"])
-        elif "l1_reg" in config["model_config"]:
-            self.reg = l1(config["model_config"]["l1_reg"])
-        else:
-            self.reg = None
-        self.batch_size = config['data_config']['batch_size']
-        super(ESMM, self).__init__(**kwargs)
+        super(ESMM, self).__init__(config, **kwargs)
         self.loss_tracker = metrics.Mean(name="loss")
         self.ctr_loss_tracker = metrics.Mean(name="ctr_loss")
         self.ctcvr_loss_tracker = metrics.Mean(name="ctcvr_loss")

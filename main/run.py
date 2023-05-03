@@ -11,8 +11,8 @@ def save_model():
 
 if __name__ == '__main__':
     data_config_path = "..\config\data_ali_ccp_test_v1.json"
-    model_config_path = "..\config\model_esmm.json"
+    model_config_path = "..\config\model_afm.json"
     pipeline = TrainPipeline(data_config_path, model_config_path, run_eagerly=True)
     model = pipeline.train()
     model.summary()
-    save_model()
+    # save_model()

@@ -1,32 +1,33 @@
 # -*- coding:utf-8 -*-
 import tensorflow as tf
-from tensorflow.python.keras.models import Model
-from tensorflow.python.keras.regularizers import l1, l2
+from models.base import Base
 from layers.input_to_wide_emb import InputToWideEmb
 from layers.afm import AFMLayer
 
 
-class AFM(Model):
+class AFM(Base):
     def __init__(self, config, **kwargs):
-        self.config = config
-        self.feat_size = len(config["feature_config"]["features"])
-        self.emb_dim = config["model_config"]["embedding_dim"]
-        if "l2_reg" in config["model_config"]:
-            self.reg = l2(config["model_config"]["l2_reg"])
-        elif "l1_reg" in config["model_config"]:
-            self.reg = l1(config["model_config"]["l1_reg"])
-        else:
-            self.reg = None
-        super(AFM, self).__init__(**kwargs)  # Be sure to call this somewhere!
+        super(AFM, self).__init__(config, **kwargs)  # Be sure to call this somewhere!
 
     def build(self, input_shape):
-        self.input_to_wide_emb = InputToWideEmb(True, self.emb_dim, self.config["feature_config"]["features"], self.reg)
-        self.afm = AFMLayer(4, self.feat_size, self.reg, name="afm_layer")
+        self.input_to_wide_emb_list = [InputToWideEmb(True, self.emb_dim, group, self.input_attributes, self.reg, name=group_name) for group_name, group in self.feature_group_list]
+        feat_size = 0
+        for group_name, group in self.feature_group_list:
+            feat_size += len(group)
+        print(f"feat_size: {feat_size}")
+        self.afm = AFMLayer(4, feat_size, self.reg, name="afm_layer")
         self.bias = self.add_weight(name='bias', shape=[1], initializer='zeros')
 
     def call(self, inputs, training=None, mask=None):
-        wide_input, afm_input = self.input_to_wide_emb(inputs)
-        wide_output = tf.reduce_sum(wide_input, axis=1,  keepdims=True) + self.bias  # (batch_size, 1)
+        emb_tensor_list = []
+        wide_tensor_list = []
+        for input_to_wide_emb in self.input_to_wide_emb_list:
+            wide_tensor, emb_tensor = input_to_wide_emb(inputs)
+            wide_tensor_list.append(wide_tensor)
+            emb_tensor_list.append(emb_tensor)
+        wide_input = tf.concat(wide_tensor_list, axis=1)
+        wide_output = tf.reduce_sum(wide_input, axis=1, keepdims=True) + self.bias  # (batch_size, 1)
+        afm_input = tf.concat(emb_tensor_list, axis=1)
         fm_output = self.afm(afm_input)  # (batch_size, 1)
         output = tf.sigmoid(wide_output + fm_output)
         return output
