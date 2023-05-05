@@ -92,38 +92,100 @@ class TrainPipeline:
 
         return func
 
-    def get_default_value(self):
+    def get_default_value(self, input_attribute):
+        if input_attribute["field_type"] == "ClassLabel":
+            return 0
+        elif input_attribute["field_type"] == "ContinuousLabel":
+            return 0.0
+        elif input_attribute["field_type"] in ["WeightTagFeature", "TagFeature"]:
+            return ""
+        elif input_attribute["field_type"] == "SingleFeature":
+            if input_attribute["index_type"] == "int":
+                return 0
+            elif input_attribute["index_type"] == "float":
+                return 0.0
+            elif input_attribute["index_type"] == "string":
+                return ""
+            else:
+                raise ValueError(f"unexpected field_type: {input_attribute['field_type']}")
+        else:
+            raise ValueError(f"unexpected field_type: {input_attribute['field_type']}")
+
+    def get_default_value_list(self):
         input_attributes = self.config["data_config"]["input_attributes"]
         column_defaults = []
         for input_field, input_attribute in input_attributes.items():
-            if input_attribute["field_type"] == "ClassLabel":
-                column_defaults.append(0)
-            elif input_attribute["field_type"] == "ContinuousLabel":
-                column_defaults.append(0.0)
-            elif input_attribute["field_type"] in ["WeightTagFeature", "TagFeature"]:
-                column_defaults.append("")
-            elif input_attribute["field_type"] == "SingleFeature":
-                if input_attribute["index_type"] == "int":
-                    column_defaults.append(0)
-                elif input_attribute["index_type"] == "float":
-                    column_defaults.append(0.0)
-                elif input_attribute["index_type"] == "string":
-                    column_defaults.append("")
-                else:
-                    raise ValueError(f"unexpected field_type: {input_attribute['field_type']}")
-            else:
-                raise ValueError(f"unexpected field_type: {input_attribute['field_type']}")
+            column_defaults.append(self.get_default_value(input_attribute))
         return column_defaults
+
+    def read_csv_data(self):
+        input_fields = [input_field for input_field in self.config["data_config"]["input_attributes"]]
+        print(f"input_fields: {input_fields}")
+        column_defaults = self.get_default_value_list()
+        train_ds = tf.data.experimental.make_csv_dataset(
+            self.config["train_input_path"], self.config["data_config"]["batch_size"], column_names=input_fields,
+            shuffle=False, column_defaults=column_defaults)
+        return train_ds
+
+    def read_aliyun_data(self):
+        input_fields = []
+        output_types = {}
+        for key, attr_dict in self.config["data_config"]["input_attributes"].items():
+            if attr_dict["field_type"].endswith("Feature"):
+                aliyun_field = "feat_" + key
+            else:
+                aliyun_field = key
+            input_fields.append((aliyun_field, key))
+            if attr_dict["field_type"] == "SingleFeature":
+                if attr_dict["index_type"] == "int":
+                    output_types[key] = tf.int32
+                elif attr_dict["index_type"] == "float":
+                    output_types[key] = tf.float32
+                elif attr_dict["index_type"] == "string":
+                    output_types[key] = tf.string
+                else:
+                    raise ValueError(f"unexpected index_type: {attr_dict['index_type']}")
+            elif attr_dict["field_type"] == "ClassLabel":
+                output_types[key] = tf.int32
+            elif attr_dict["field_type"] == "ContinuousLabel":
+                output_types[key] = tf.float32
+            elif attr_dict["field_type"] in ["TagFeature", "WeightTagFeature"]:
+                output_types[key] = tf.string
+            else:
+                raise ValueError(f"unexpected index_type: {attr_dict['index_type']}")
+        print(input_fields)
+        print(output_types)
+        from config.account import access_id, secret_access_key, project, endpoint
+        from odps import ODPS
+        o = ODPS(access_id, secret_access_key, project, endpoint=endpoint)
+        sql = f"""
+        SELECT  *
+        FROM    {self.config["data_config"]['table_name']}
+        WHERE   dt BETWEEN {self.config["data_config"]['start_dt']} AND {self.config["data_config"]['end_dt']}
+        ORDER BY RAND()
+        """
+
+        def read_max_compute():
+            with o.execute_sql(sql).open_reader() as reader:
+                for record in reader:
+                    res = {}
+                    for aliyun_field, key in input_fields:
+                        if record[aliyun_field]:
+                            res[key] = record[aliyun_field]
+                        else:
+                            res[key] = self.get_default_value(self.config["data_config"]["input_attributes"][key])
+                    yield res
+
+        train_ds = tf.data.Dataset.from_generator(read_max_compute, output_types=output_types)
+        train_ds = train_ds.batch(batch_size=self.config["data_config"]["batch_size"])
+        return train_ds
 
     def read_data(self):
         data_config = self.config["data_config"]
-        input_fields = [input_field for input_field in data_config["input_attributes"]]
-        print(f"input_fields: {input_fields}")
-        column_defaults = self.get_default_value()
         if data_config["input_type"] == "CSVInput":
-            train_ds = tf.data.experimental.make_csv_dataset(
-                self.config["train_input_path"], data_config["batch_size"], column_names=input_fields,
-                shuffle=False, column_defaults=column_defaults)
+            train_ds = self.read_csv_data()
+        elif data_config["input_type"] == "MaxComputeInput":
+            train_ds = self.read_aliyun_data()
         else:
             raise ValueError(f"unexpected input_type: {data_config['input_type']}")
         train_ds = train_ds.map(self.map_sample(), num_parallel_calls=4)
@@ -191,7 +253,7 @@ class TrainPipeline:
 
 if __name__ == '__main__':
     # 预览训练样本
-    pipeline = TrainPipeline("..\config\data_ali_ccp_test_v1.json", "..\config\model_esmm.json", run_eagerly=True)
+    pipeline = TrainPipeline("..\config\data_aliyun_down_rec.json", "..\config\model_esmm.json", run_eagerly=True)
     ds = pipeline.read_data()
     sample = next(iter(ds))
     for feature_name, feature_tensor in sample[0].items():
