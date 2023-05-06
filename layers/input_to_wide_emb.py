@@ -34,6 +34,12 @@ class BaseInputLayer(Layer):
             input_dim = len(self.feat["boundaries"]) + 1
             boundaries = self.feat["boundaries"]
             self.lookup = Lambda(lambda x: tf.raw_ops.Bucketize(input=x, boundaries=boundaries))
+        elif "num_buckets" in self.feat:
+            input_dim = self.feat["num_buckets"] + 1
+            self.lookup = Lambda(lambda x: tf.where(
+                tf.math.logical_or(tf.math.greater_equal(x, tf.constant(input_dim)),
+                                   tf.math.less(x, tf.constant(0))),
+                tf.constant(0), x))
         else:
             raise ValueError(f"unexpected {self.feat}")
         self.emb = Embedding(input_dim, self.emb_dim, embeddings_regularizer=self.reg, name=f'emb_{self.feat_name}')
