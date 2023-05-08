@@ -38,8 +38,8 @@ class ESMM(Base):
 
     def train_step(self, data):
         x, y = data
-        ctr_label = y["click"]
-        ctcvr_label = y["conversion"]
+        ctr_label = y[self.config["data_config"]["label_fields"][0]]
+        ctcvr_label = y[self.config["data_config"]["label_fields"][1]]
         ctr_label_float = tf.cast(ctr_label, dtype=tf.float32)
         ctcvr_label_float = tf.cast(ctcvr_label, dtype=tf.float32)
         ctr_s2 = 1 / (self.batch_size - 1) * tf.reduce_sum(tf.square(ctr_label_float - tf.reduce_mean(ctr_label_float))) + tf.constant(1.0*10**(-5))

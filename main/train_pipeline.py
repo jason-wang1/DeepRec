@@ -25,7 +25,15 @@ class TrainPipeline:
         self.run_eagerly = run_eagerly
 
     def map_sample(self):
-        feature_fields = self.config["data_config"]["feature_fields"]
+        feature_fields = set()
+        for feature_groups in self.config["model_config"]["feature_groups"].values():
+            for feature in feature_groups:
+                if isinstance(feature['input_names'], list):
+                    feature_fields.update(feature['input_names'])
+                elif isinstance(feature['input_names'], str):
+                    feature_fields.add(feature['input_names'])
+                else:
+                    raise ValueError(f"input_names of feature_fields type error: {feature}")
         input_attributes = self.config["data_config"]["input_attributes"]
         batch_size = self.config["data_config"]["batch_size"]
 
@@ -253,7 +261,8 @@ class TrainPipeline:
 
 if __name__ == '__main__':
     # 预览训练样本
-    pipeline = TrainPipeline("..\config\data_aliyun_down_rec.json", "..\config\model_esmm.json", run_eagerly=True)
+    pipeline = TrainPipeline("..\config\data_aliyun_down_rec\data_aliyun_down_rec.json",
+                             "..\config\data_aliyun_down_rec\model_esmm.json", run_eagerly=True)
     ds = pipeline.read_data()
     sample = next(iter(ds))
     for feature_name, feature_tensor in sample[0].items():
