@@ -60,7 +60,7 @@ class TrainPipeline:
                 if input_attributes[feature]["field_type"] == "WeightTagFeature":
                     pad_num = input_attributes[feature]["pad_num"]
                     tensor = tf.strings.split(tf.strings.split(tensor, chr(1)), chr(2))
-                    tensor = tensor.to_tensor(shape=[None, pad_num, 2], default_value='')
+                    tensor = tensor.to_tensor(shape=[batch_size, pad_num, 2], default_value='')
                     index, value = tf.split(tensor, num_or_size_splits=2, axis=2)
                     index = tf.squeeze(index, axis=2)
                     value = tf.squeeze(value, axis=2)
@@ -79,7 +79,7 @@ class TrainPipeline:
                 elif input_attributes[feature]["field_type"] == "TagFeature":
                     pad_num = input_attributes[feature]["pad_num"]
                     index = tf.strings.split(tensor, chr(1))
-                    index = index.to_tensor(shape=[None, pad_num], default_value='')
+                    index = index.to_tensor(shape=[batch_size, pad_num], default_value='')
                     emp_str = tf.constant('', shape=[batch_size, pad_num])
                     value_0 = tf.equal(index, emp_str)
                     value = tf.where(value_0, tf.zeros_like(index, dtype=tf.float32),
@@ -93,7 +93,7 @@ class TrainPipeline:
                     else:
                         raise ValueError(f"unexpected feature index_type{input_attributes[feature]['index_type']}")
                 else:
-                    index = tf.expand_dims(tensor, axis=1)
+                    index = tf.reshape(tensor, shape=[batch_size, 1])
                     res = {"index": index, "value": tf.ones_like(index, dtype=tf.float32)}
                 feature_dict[feature] = res
             return feature_dict, get_label(sample_tensor_dict)
@@ -249,13 +249,21 @@ class TrainPipeline:
         return model
 
 
+@tf.function
+def get_one_sample():
+    ds = pipeline.read_data()
+    for sample in ds:
+        for feature_name, feature_tensor in sample[0].items():
+            print(f"{feature_name}: {feature_tensor}")
+        print(sample[1])
+        print(sample)
+        break
+
+
 if __name__ == '__main__':
     # 预览训练样本
-    pipeline = TrainPipeline("..\config\data_aliyun_down_rec\data_aliyun_down_rec.json",
-                             "..\config\data_aliyun_down_rec\model_esmm.json", run_eagerly=True)
-    ds = pipeline.read_data()
-    sample = next(iter(ds))
-    for feature_name, feature_tensor in sample[0].items():
-        print(f"{feature_name}: {feature_tensor}")
-    print(sample[1])
-    print(sample)
+    # pipeline = TrainPipeline("..\config\data_aliyun_down_rec\data_aliyun_down_rec.json",
+    #                          "..\config\data_aliyun_down_rec\model_esmm.json", run_eagerly=False)
+    pipeline = TrainPipeline("..\config\data_csv_test\data_csv_test.json",
+                             "..\config\data_csv_test\model_esmm.json", run_eagerly=False)
+    get_one_sample()
