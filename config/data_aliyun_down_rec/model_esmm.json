@@ -90,7 +90,7 @@
     "l2_reg": 0.0001
   },
   "train_config": {
-    "epochs": 1,
+    "epochs": 10,
     "steps_per_epoch":10,
     "loss": ["binary_crossentropy", "binary_crossentropy"],
     "metrics": ["AUC"],

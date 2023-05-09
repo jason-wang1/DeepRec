@@ -92,6 +92,7 @@
     },
     "batch_size":1024,
     "prefetch_size": 5,
+    "repeat": 2,
     "input_type": "MaxComputeInput",
     "table_name": "aliyun_3d66_dw.rec_llw_lyk_download_sample",
     "start_dt": "20230504",

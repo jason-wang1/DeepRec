@@ -132,7 +132,7 @@ class TrainPipeline:
         column_defaults = self.get_default_value_list()
         train_ds = tf.data.experimental.make_csv_dataset(
             self.config["train_input_path"], self.config["data_config"]["batch_size"], column_names=input_fields,
-            shuffle=False, column_defaults=column_defaults)
+            shuffle=True, column_defaults=column_defaults)
         return train_ds
 
     def read_aliyun_data(self):
@@ -185,7 +185,6 @@ class TrainPipeline:
                     yield res
 
         train_ds = tf.data.Dataset.from_generator(read_max_compute, output_types=output_types)
-        train_ds = train_ds.batch(batch_size=self.config["data_config"]["batch_size"], drop_remainder=True)
         return train_ds
 
     def read_data(self):
@@ -194,6 +193,9 @@ class TrainPipeline:
             train_ds = self.read_csv_data()
         elif data_config["input_type"] == "MaxComputeInput":
             train_ds = self.read_aliyun_data()
+            train_ds = train_ds.shuffle(10000, reshuffle_each_iteration=True)
+            train_ds = train_ds.repeat(self.config["data_config"].get("repeat", 1))
+            train_ds = train_ds.batch(batch_size=self.config["data_config"]["batch_size"], drop_remainder=True)
         else:
             raise ValueError(f"unexpected input_type: {data_config['input_type']}")
         train_ds = train_ds.map(self.map_sample(), num_parallel_calls=4)
