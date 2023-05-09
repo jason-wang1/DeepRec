@@ -135,7 +135,7 @@ class TrainPipeline:
             shuffle=True, column_defaults=column_defaults)
         return train_ds
 
-    def read_aliyun_data(self):
+    def read_aliyun_data(self, data_type):
         input_fields = []
         output_types = {}
         for key, attr_dict in self.config["data_config"]["input_attributes"].items():
@@ -166,11 +166,18 @@ class TrainPipeline:
         from config.account import access_id, secret_access_key, project, endpoint
         from odps import ODPS
         o = ODPS(access_id, secret_access_key, project, endpoint=endpoint)
+        if data_type == "train":
+            start_dt = self.config["data_config"]['train_start_dt']
+            end_dt = self.config["data_config"]['train_end_dt']
+        elif data_type == "valid":
+            start_dt = self.config["data_config"]['valid_start_dt']
+            end_dt = self.config["data_config"]['valid_end_dt']
+        else:
+            raise ValueError(f"unexpected data_type: {data_type}")
         sql = f"""
         SELECT  *
         FROM    {self.config["data_config"]['table_name']}
-        WHERE   dt BETWEEN {self.config["data_config"]['start_dt']} AND {self.config["data_config"]['end_dt']}
-        ORDER BY RAND()
+        WHERE   dt BETWEEN {start_dt} AND {end_dt}
         """
 
         def read_max_compute():
@@ -187,14 +194,15 @@ class TrainPipeline:
         train_ds = tf.data.Dataset.from_generator(read_max_compute, output_types=output_types)
         return train_ds
 
-    def read_data(self):
+    def read_data(self, data_type):
         data_config = self.config["data_config"]
         if data_config["input_type"] == "CSVInput":
             train_ds = self.read_csv_data()
         elif data_config["input_type"] == "MaxComputeInput":
-            train_ds = self.read_aliyun_data()
+            train_ds = self.read_aliyun_data(data_type)
             train_ds = train_ds.shuffle(10000, reshuffle_each_iteration=True)
-            train_ds = train_ds.repeat(self.config["data_config"].get("repeat", 1))
+            if data_type == "train":
+                train_ds = train_ds.repeat(self.config["data_config"].get("repeat", 1))
             train_ds = train_ds.batch(batch_size=self.config["data_config"]["batch_size"], drop_remainder=True)
         else:
             raise ValueError(f"unexpected input_type: {data_config['input_type']}")
@@ -241,19 +249,21 @@ class TrainPipeline:
         return model
 
     def train(self):
-        train_ds = self.read_data()
+        train_ds = self.read_data(data_type="train")
+        valid_ds = self.read_data(data_type="valid")
         model = self.get_model()
         model.fit(
             x=train_ds,
             epochs=self.config["train_config"]["epochs"],
             steps_per_epoch=self.config["train_config"]["steps_per_epoch"],
+            validation_data=valid_ds
         )
         return model
 
 
 @tf.function
 def get_one_sample():
-    ds = pipeline.read_data()
+    ds = pipeline.read_data(data_type="train")
     for sample in ds:
         for feature_name, feature_tensor in sample[0].items():
             print(f"{feature_name}: {feature_tensor}")

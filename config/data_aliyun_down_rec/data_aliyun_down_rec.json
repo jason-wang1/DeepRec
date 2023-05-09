@@ -95,7 +95,9 @@
     "repeat": 2,
     "input_type": "MaxComputeInput",
     "table_name": "aliyun_3d66_dw.rec_llw_lyk_download_sample",
-    "start_dt": "20230504",
-    "end_dt": "20230504"
+    "train_start_dt": "20230504",
+    "train_end_dt": "20230507",
+    "valid_start_dt": "20230508",
+    "valid_end_dt": "20230508"
   }
 }

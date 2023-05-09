@@ -62,6 +62,26 @@ class ESMM(Base):
                 "ctcvr_loss": self.ctcvr_loss_tracker.result(),
                 "ctr_auc": self.ctr_auc.result(), "ctcvr_auc": self.ctcvr_auc.result()}
 
+    def test_step(self, data):
+        x, y = data
+        ctr_label = y[self.config["data_config"]["label_fields"][0]]
+        ctcvr_label = y[self.config["data_config"]["label_fields"][1]]
+
+        ctr_pred, ctcvr_pred = self(x, training=True)  # Forward pass
+        ctr_loss = losses.binary_crossentropy(ctr_label, ctr_pred)  # shape=()
+        ctcvr_loss = losses.binary_crossentropy(ctcvr_label, ctcvr_pred)
+        loss = ctr_loss + ctcvr_loss
+
+        # Compute our own metrics
+        self.loss_tracker.update_state(loss)
+        self.ctr_loss_tracker.update_state(ctr_loss)
+        self.ctcvr_loss_tracker.update_state(ctcvr_loss)
+        self.ctr_auc.update_state(ctr_label, ctr_pred)
+        self.ctcvr_auc.update_state(ctcvr_label, ctcvr_pred)
+        return {"loss": self.loss_tracker.result(), "ctr_loss": self.ctr_loss_tracker.result(),
+                "ctcvr_loss": self.ctcvr_loss_tracker.result(),
+                "ctr_auc": self.ctr_auc.result(), "ctcvr_auc": self.ctcvr_auc.result()}
+
     @property
     def metrics(self):
         return [self.loss_tracker, self.ctr_loss_tracker, self.ctcvr_loss_tracker, self.ctr_auc, self.ctcvr_auc]

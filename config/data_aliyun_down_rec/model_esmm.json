@@ -91,7 +91,7 @@
   },
   "train_config": {
     "epochs": 10,
-    "steps_per_epoch":10,
+    "steps_per_epoch":50,
     "loss": ["binary_crossentropy", "binary_crossentropy"],
     "metrics": ["AUC"],
     "optimizer": {
