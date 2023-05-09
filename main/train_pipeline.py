@@ -3,7 +3,6 @@ from collections import OrderedDict
 import json
 import tensorflow as tf
 from tensorflow.python.keras import optimizers
-from tensorflow.keras.optimizers.schedules import ExponentialDecay
 from models.twotower_deepfm import TwoTowerDeepFM
 from models.deepfm import DeepFM
 from models.afm import AFM
@@ -23,6 +22,7 @@ class TrainPipeline:
         self.config = {**data_config, **model_config}
         self.config_str = json.dumps(self.config)
         self.run_eagerly = run_eagerly
+        print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
     def map_sample(self):
         feature_fields = set()
@@ -185,7 +185,7 @@ class TrainPipeline:
                     yield res
 
         train_ds = tf.data.Dataset.from_generator(read_max_compute, output_types=output_types)
-        train_ds = train_ds.batch(batch_size=self.config["data_config"]["batch_size"])
+        train_ds = train_ds.batch(batch_size=self.config["data_config"]["batch_size"], drop_remainder=True)
         return train_ds
 
     def read_data(self):
@@ -203,24 +203,14 @@ class TrainPipeline:
     def get_optimizer(self):
         optimizer_config = self.config["train_config"]["optimizer"]
         learning_rate = optimizer_config["learning_rate"]
-        if isinstance(learning_rate, dict):
-            if learning_rate["schedule"] == "exponential_decay":
-                lr_schedule = ExponentialDecay(
-                    learning_rate["initial_learning_rate"], learning_rate["decay_steps"], learning_rate["decay_rate"]
-                )
-            else:
-                print(f"unexpected schedule: {learning_rate['schedule']}")
-                sys.exit(1)
-        elif isinstance(learning_rate, float):
+        if isinstance(learning_rate, float):
             lr_schedule = learning_rate
         else:
-            print(f"unexpected config type: {learning_rate}")
-            sys.exit(1)
+            raise ValueError(f"unexpected config type: {learning_rate}")
         if optimizer_config["name"] == "adam":
             optimizer = optimizers.adam_v2.Adam(learning_rate=lr_schedule)
         else:
-            print(f"unexpected optimizer name: {optimizer_config['name']}")
-            sys.exit(1)
+            raise ValueError(f"unexpected optimizer name: {optimizer_config['name']}")
         return optimizer
 
     def get_model(self):

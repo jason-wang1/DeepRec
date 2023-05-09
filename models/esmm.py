@@ -12,8 +12,6 @@ class ESMM(Base):
         self.loss_tracker = metrics.Mean(name="loss")
         self.ctr_loss_tracker = metrics.Mean(name="ctr_loss")
         self.ctcvr_loss_tracker = metrics.Mean(name="ctcvr_loss")
-        self.ctr_var_tracker = metrics.Mean(name="ctr_var")
-        self.ctcvr_var_tracker = metrics.Mean(name="ctcvr_var")
         self.ctr_auc = metrics.AUC(name="ctr_auc")
         self.ctcvr_auc = metrics.AUC(name="ctcvr_auc")
 
@@ -40,16 +38,12 @@ class ESMM(Base):
         x, y = data
         ctr_label = y[self.config["data_config"]["label_fields"][0]]
         ctcvr_label = y[self.config["data_config"]["label_fields"][1]]
-        ctr_label_float = tf.cast(ctr_label, dtype=tf.float32)
-        ctcvr_label_float = tf.cast(ctcvr_label, dtype=tf.float32)
-        ctr_s2 = 1 / (self.batch_size - 1) * tf.reduce_sum(tf.square(ctr_label_float - tf.reduce_mean(ctr_label_float))) + tf.constant(1.0*10**(-5))
-        ctcvr_s2 = 1 / (self.batch_size - 1) * tf.reduce_sum(tf.square(ctcvr_label_float - tf.reduce_mean(ctcvr_label_float))) + tf.constant(1.0*10**(-5))
 
         with tf.GradientTape() as tape:
             ctr_pred, ctcvr_pred = self(x, training=True)  # Forward pass
             ctr_loss = losses.binary_crossentropy(ctr_label, ctr_pred)  # shape=()
             ctcvr_loss = losses.binary_crossentropy(ctcvr_label, ctcvr_pred)
-            loss = (1.0/(2 * ctr_s2)) * ctr_loss + (1.0/(2 * ctcvr_s2)) * ctcvr_loss + tf.math.log(tf.sqrt(ctr_s2 * ctcvr_s2))
+            loss = ctr_loss + ctcvr_loss
 
         # Compute gradients
         trainable_vars = self.trainable_variables
@@ -62,15 +56,12 @@ class ESMM(Base):
         self.loss_tracker.update_state(loss)
         self.ctr_loss_tracker.update_state(ctr_loss)
         self.ctcvr_loss_tracker.update_state(ctcvr_loss)
-        self.ctr_var_tracker.update_state(ctr_s2)
-        self.ctcvr_var_tracker.update_state(ctcvr_s2)
         self.ctr_auc.update_state(ctr_label, ctr_pred)
         self.ctcvr_auc.update_state(ctcvr_label, ctcvr_pred)
         return {"loss": self.loss_tracker.result(), "ctr_loss": self.ctr_loss_tracker.result(),
                 "ctcvr_loss": self.ctcvr_loss_tracker.result(),
-                "ctr_s2": self.ctr_var_tracker.result(), "ctcvr_s2": self.ctcvr_var_tracker.result(),
                 "ctr_auc": self.ctr_auc.result(), "ctcvr_auc": self.ctcvr_auc.result()}
 
     @property
     def metrics(self):
-        return [self.loss_tracker, self.ctr_loss_tracker, self.ctcvr_loss_tracker, self.ctr_var_tracker, self.ctcvr_var_tracker, self.ctr_auc, self.ctcvr_auc]
+        return [self.loss_tracker, self.ctr_loss_tracker, self.ctcvr_loss_tracker, self.ctr_auc, self.ctcvr_auc]
