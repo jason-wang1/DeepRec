@@ -131,14 +131,26 @@ class TrainPipeline:
             column_defaults.append(self.get_default_value(input_attribute))
         return column_defaults
 
-    def read_csv_data(self):
+    def read_csv_data(self, data_type):
         input_fields = [input_field for input_field in self.config["data_config"]["input_attributes"]]
         print(f"input_fields: {input_fields}")
         column_defaults = self.get_default_value_list()
-        train_ds = tf.data.experimental.make_csv_dataset(
-            self.config["train_input_path"], self.config["data_config"]["batch_size"], column_names=input_fields,
-            shuffle=True, column_defaults=column_defaults)
-        return train_ds
+        if data_type == "train":
+            dataset = tf.data.experimental.CsvDataset(
+                self.config["train_input_path"], column_defaults)
+        elif data_type == "valid":
+            dataset = tf.data.experimental.CsvDataset(
+                self.config["valid_input_path"], column_defaults)
+        else:
+            raise ValueError(f"unexpected data_type: {data_type}")
+
+        def convert_to_dict(*tup_sample):
+            res = {}
+            for i, input_field in enumerate(input_fields):
+                res[input_field] = tup_sample[i]
+            return res
+        dataset = dataset.map(convert_to_dict)
+        return dataset
 
     def read_aliyun_data(self, data_type):
         input_fields = []
@@ -210,15 +222,15 @@ class TrainPipeline:
     def read_data(self, data_type):
         data_config = self.config["data_config"]
         if data_config["input_type"] == "CSVInput":
-            train_ds = self.read_csv_data()
+            train_ds = self.read_csv_data(data_type)
         elif data_config["input_type"] == "MaxComputeInput":
             train_ds = self.read_aliyun_data(data_type)
-            if data_type == "train":
-                train_ds = train_ds.shuffle(10000, reshuffle_each_iteration=True)
-                train_ds = train_ds.repeat(self.config["data_config"].get("repeat", 1))
-            train_ds = train_ds.batch(batch_size=self.config["data_config"]["batch_size"], drop_remainder=True)
         else:
             raise ValueError(f"unexpected input_type: {data_config['input_type']}")
+        if data_type == "train":
+            train_ds = train_ds.shuffle(10000, reshuffle_each_iteration=True)
+            train_ds = train_ds.repeat(self.config["data_config"].get("repeat", 1))
+        train_ds = train_ds.batch(batch_size=self.config["data_config"]["batch_size"], drop_remainder=True)
         train_ds = train_ds.map(self.map_sample(), num_parallel_calls=4)
         train_ds = train_ds.prefetch(data_config["prefetch_size"])
         return train_ds
@@ -314,3 +326,4 @@ if __name__ == '__main__':
     pipeline = TrainPipeline("..\config\data_csv_test\data_csv_test.json",
                              "..\config\data_csv_test\model_esmm.json", run_eagerly=False)
     print(pipeline.config_str)
+    get_one_sample()

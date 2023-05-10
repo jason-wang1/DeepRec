@@ -1,5 +1,4 @@
 {
-  "train_input_path": "..\\data\\sample_test.csv",
   "data_config": {
     "label_fields": ["click_label", "down_label"],
     "input_attributes": {

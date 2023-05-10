@@ -1,5 +1,6 @@
 {
-  "train_input_path": "..\\data\\sample_test.csv",
+  "train_input_path": "..\\data\\sample_train.csv",
+  "valid_input_path": "..\\data\\sample_train.csv",
   "data_config": {
     "label_fields": ["click", "conversion"],
     "input_attributes": {
