@@ -99,6 +99,6 @@
     "train_end_dt": "20230508",
     "valid_start_dt": "20230509",
     "valid_end_dt": "20230509",
-    "valid_limit": 10000
+    "valid_limit": 100000
   }
 }

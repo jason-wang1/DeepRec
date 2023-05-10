@@ -97,7 +97,7 @@
     "early_stopping_patience": 5,
     "optimizer": {
       "name": "adam",
-      "learning_rate": 0.001
+      "learning_rate": 0.0005
     }
   }
 }
