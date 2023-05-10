@@ -1,4 +1,6 @@
 import sys
+import time
+import math
 from collections import OrderedDict
 import json
 import tensorflow as tf
@@ -13,6 +15,7 @@ from models.din import DIN
 
 class TrainPipeline:
     def __init__(self, data_config_path, model_config_path, run_eagerly=None):
+        self.date_time = time.strftime("%Y-%m-%d %H%M%S", time.localtime())
         with open(data_config_path) as f:
             config_str = f.read()
             data_config = json.loads(config_str, object_pairs_hook=OrderedDict)
@@ -166,20 +169,6 @@ class TrainPipeline:
         from config.account import access_id, secret_access_key, project, endpoint
         from odps import ODPS
         o = ODPS(access_id, secret_access_key, project, endpoint=endpoint)
-        if data_type == "train":
-            start_dt = self.config["data_config"]['train_start_dt']
-            end_dt = self.config["data_config"]['train_end_dt']
-        elif data_type == "valid":
-            start_dt = self.config["data_config"]['valid_start_dt']
-            end_dt = self.config["data_config"]['valid_end_dt']
-        else:
-            raise ValueError(f"unexpected data_type: {data_type}")
-        sql = f"""
-        SELECT  *
-        FROM    {self.config["data_config"]['table_name']}
-        WHERE   dt BETWEEN {start_dt} AND {end_dt}
-        """
-
         def read_max_compute():
             with o.execute_sql(sql).open_reader() as reader:
                 for record in reader:
@@ -191,8 +180,30 @@ class TrainPipeline:
                             res[key] = self.get_default_value(self.config["data_config"]["input_attributes"][key])
                     yield res
 
-        train_ds = tf.data.Dataset.from_generator(read_max_compute, output_types=output_types)
-        return train_ds
+        if data_type == "train":
+            sql = f"""
+            SELECT  *
+            FROM    {self.config["data_config"]['table_name']}
+            WHERE   dt BETWEEN {self.config["data_config"]['train_start_dt']} AND {self.config["data_config"]['train_end_dt']}
+            ORDER BY RAND()
+            """
+            dataset = tf.data.Dataset.from_generator(read_max_compute, output_types=output_types)
+        elif data_type == "valid":
+            sql = f"""
+            SELECT  *
+            FROM    {self.config["data_config"]['table_name']}
+            WHERE   dt BETWEEN {self.config["data_config"]['valid_start_dt']} AND {self.config["data_config"]['valid_end_dt']}
+            LIMIT   {self.config["data_config"]['valid_limit']}
+            """
+            self.valid_data = [sample for sample in read_max_compute()]
+            def valid_data_gen():
+                for sample in self.valid_data:
+                    yield sample
+            dataset = tf.data.Dataset.from_generator(valid_data_gen, output_types=output_types)
+        else:
+            raise ValueError(f"unexpected data_type: {data_type}")
+
+        return dataset
 
     def read_data(self, data_type):
         data_config = self.config["data_config"]
@@ -200,8 +211,8 @@ class TrainPipeline:
             train_ds = self.read_csv_data()
         elif data_config["input_type"] == "MaxComputeInput":
             train_ds = self.read_aliyun_data(data_type)
-            train_ds = train_ds.shuffle(10000, reshuffle_each_iteration=True)
             if data_type == "train":
+                train_ds = train_ds.shuffle(10000, reshuffle_each_iteration=True)
                 train_ds = train_ds.repeat(self.config["data_config"].get("repeat", 1))
             train_ds = train_ds.batch(batch_size=self.config["data_config"]["batch_size"], drop_remainder=True)
         else:
@@ -222,6 +233,27 @@ class TrainPipeline:
         else:
             raise ValueError(f"unexpected optimizer name: {optimizer_config['name']}")
         return optimizer
+
+    def get_callbacks(self):
+        patience = self.config["train_config"].get("early_stopping_patience", math.ceil(self.config["train_config"]["epochs"]/10))
+        log_dir = f"..\\output\\{self.date_time}\\tensorboard"
+        tensorboard_callback = tf.keras.callbacks.TensorBoard(
+            log_dir=log_dir,
+            # update_freq=5000,
+            histogram_freq=1
+        )
+        early_stopping_callback = tf.keras.callbacks.EarlyStopping(
+            monitor='val_loss',
+            verbose=1,
+            patience=patience,
+            restore_best_weights=True
+        )
+        checkpoint_cb = tf.keras.callbacks.ModelCheckpoint(
+            filepath="..\output\checkpoint_model",
+            monitor='val_loss',
+            mode='min',
+            save_best_only=True)
+        return [tensorboard_callback, early_stopping_callback, checkpoint_cb]
 
     def get_model(self):
         optimizer = self.get_optimizer()
@@ -255,6 +287,7 @@ class TrainPipeline:
         model.fit(
             x=train_ds,
             epochs=self.config["train_config"]["epochs"],
+            callbacks=self.get_callbacks(),
             steps_per_epoch=self.config["train_config"]["steps_per_epoch"],
             validation_data=valid_ds
         )

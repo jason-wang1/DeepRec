@@ -90,10 +90,11 @@
     "l2_reg": 0.0001
   },
   "train_config": {
-    "epochs": 10,
-    "steps_per_epoch":50,
+    "epochs": 30,
+    "steps_per_epoch":20,
     "loss": ["binary_crossentropy", "binary_crossentropy"],
     "metrics": ["AUC"],
+    "early_stopping_patience": 5,
     "optimizer": {
       "name": "adam",
       "learning_rate": 0.001

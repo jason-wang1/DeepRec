@@ -1,9 +1,8 @@
-import time
 from train_pipeline import TrainPipeline
 
 
 def save_model():
-    date_time = time.strftime("%Y-%m-%d %H%M%S", time.localtime())
+    date_time = pipeline.date_time
     model.save(f"..\\output\\{date_time}\\model")
     with open(f"..\\output\\{date_time}\\config.json", 'w', encoding='utf-8') as f:
         f.write(pipeline.config_str)
@@ -17,4 +16,4 @@ if __name__ == '__main__':
     pipeline = TrainPipeline(data_config_path, model_config_path, run_eagerly=False)
     model = pipeline.train()
     model.summary()
-    # save_model()
+    save_model()
