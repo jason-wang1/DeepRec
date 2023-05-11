@@ -4,8 +4,10 @@ from train_pipeline import TrainPipeline
 def save_model():
     date_time = pipeline.date_time
     model.save(f"..\\output\\{date_time}\\model")
-    with open(f"..\\output\\{date_time}\\config.json", 'w', encoding='utf-8') as f:
-        f.write(pipeline.config_str)
+    with open(f"..\\output\\{date_time}\\data_config.json", 'w', encoding='utf-8') as f:
+        f.write(pipeline.data_config_str)
+    with open(f"..\\output\\{date_time}\\model_config.json", 'w', encoding='utf-8') as f:
+        f.write(pipeline.model_config_str)
 
 
 if __name__ == '__main__':

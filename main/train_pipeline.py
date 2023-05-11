@@ -16,15 +16,12 @@ from models.din import DIN
 class TrainPipeline:
     def __init__(self, data_config_path, model_config_path, run_eagerly=None):
         self.date_time = time.strftime("%Y-%m-%d %H%M%S", time.localtime())
-        self.config_str = ""
         with open(data_config_path) as f:
-            config_str = f.read()
-            data_config = json.loads(config_str, object_pairs_hook=OrderedDict)
-            self.config_str += config_str + "\n"
+            self.data_config_str = f.read()
+            data_config = json.loads(self.data_config_str, object_pairs_hook=OrderedDict)
         with open(model_config_path) as f:
-            config_str = f.read()
-            model_config = json.loads(config_str, object_pairs_hook=OrderedDict)
-            self.config_str += config_str
+            self.model_config_str = f.read()
+            model_config = json.loads(self.model_config_str, object_pairs_hook=OrderedDict)
         self.config = {**data_config, **model_config}
         self.run_eagerly = run_eagerly
         self.feature_fields = set()
@@ -329,5 +326,4 @@ if __name__ == '__main__':
     #                          "..\config\data_aliyun_down_rec\model_esmm.json", run_eagerly=False)
     pipeline = TrainPipeline("..\config\data_csv_test\data_csv_test.json",
                              "..\config\data_csv_test\model_esmm.json", run_eagerly=False)
-    print(pipeline.config_str)
     get_one_sample()
