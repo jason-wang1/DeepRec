@@ -52,8 +52,8 @@ class TrainPipeline:
                     return tensor_dict[labels]
                 else:
                     label_dict = {}
-                    for label_name in labels:
-                        label_dict[label_name] = tensor_dict[label_name]
+                    for i, label_name in enumerate(labels):
+                        label_dict[f"output_{i+1}"] = tensor_dict[label_name]
                     return label_dict
             else:
                 raise ValueError(f"labels must be a string or list, but {labels}")
@@ -288,7 +288,9 @@ class TrainPipeline:
             print(f"unexpected model_type: {model_type}")
             sys.exit(1)
         if model_type in ["ESMM"]:
-            model.compile(optimizer=optimizer, run_eagerly=self.run_eagerly)
+            model.compile(optimizer=optimizer, loss={"output_1": self.config["train_config"]["loss_1"], "output_2": self.config["train_config"]["loss_2"]},
+                          metrics={"output_1": self.config["train_config"]["metrics_1"], "output_2": self.config["train_config"]["metrics_2"]},
+                          run_eagerly=self.run_eagerly)
         else:
             model.compile(optimizer=optimizer, loss=self.config["train_config"]["loss"],
                           metrics=self.config["train_config"]["metrics"], run_eagerly=self.run_eagerly)

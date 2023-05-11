@@ -1,6 +1,5 @@
 from models.base import Base
 import tensorflow as tf
-from tensorflow.python.keras import losses, metrics
 from layers.dnn import DNN
 from layers.input_to_wide_emb import InputToWideEmb
 
@@ -9,14 +8,8 @@ class ESMM(Base):
     def __init__(self, config, **kwargs):
         self.dnn_shape = config["model_config"]["deep_hidden_units"]
         super(ESMM, self).__init__(config, **kwargs)
-        self.loss_tracker = metrics.Mean(name="loss")
-        self.ctr_loss_tracker = metrics.Mean(name="ctr_loss")
-        self.ctcvr_loss_tracker = metrics.Mean(name="ctcvr_loss")
-        self.ctr_auc = metrics.AUC(name="ctr_auc")
-        self.ctcvr_auc = metrics.AUC(name="ctcvr_auc")
 
     def build(self, input_shape):
-        # "cross": [{"input_names": ["101", "902"], "hash_bucket_size": 100000}]
         self.input_to_wide_emb_list = [InputToWideEmb(False, self.emb_dim, group, self.input_attributes, self.reg, name=group_name) for group_name, group in self.feature_group_list]
         self.ctr_tower = DNN(dnn_shape=self.dnn_shape, reg=self.reg, name="ctr_tower")
         self.cvr_tower = DNN(dnn_shape=self.dnn_shape, reg=self.reg, name="cvr_tower")
@@ -33,55 +26,3 @@ class ESMM(Base):
         cvr_pred = tf.squeeze(tf.sigmoid(cvr_pred), axis=1)
         ctcvr_pred = ctr_pred * cvr_pred
         return ctr_pred, ctcvr_pred
-
-    def train_step(self, data):
-        x, y = data
-        ctr_label = y[self.config["data_config"]["label_fields"][0]]
-        ctcvr_label = y[self.config["data_config"]["label_fields"][1]]
-
-        with tf.GradientTape() as tape:
-            ctr_pred, ctcvr_pred = self(x, training=True)  # Forward pass
-            ctr_loss = losses.binary_crossentropy(ctr_label, ctr_pred)  # shape=()
-            ctcvr_loss = losses.binary_crossentropy(ctcvr_label, ctcvr_pred)
-            loss = ctr_loss + ctcvr_loss
-
-        # Compute gradients
-        trainable_vars = self.trainable_variables
-        gradients = tape.gradient(loss, trainable_vars)
-
-        # Update weights
-        self.optimizer.apply_gradients(zip(gradients, trainable_vars))
-
-        # Compute our own metrics
-        self.loss_tracker.update_state(loss)
-        self.ctr_loss_tracker.update_state(ctr_loss)
-        self.ctcvr_loss_tracker.update_state(ctcvr_loss)
-        self.ctr_auc.update_state(ctr_label, ctr_pred)
-        self.ctcvr_auc.update_state(ctcvr_label, ctcvr_pred)
-        return {"loss": self.loss_tracker.result(), "ctr_loss": self.ctr_loss_tracker.result(),
-                "ctcvr_loss": self.ctcvr_loss_tracker.result(),
-                "ctr_auc": self.ctr_auc.result(), "ctcvr_auc": self.ctcvr_auc.result()}
-
-    def test_step(self, data):
-        x, y = data
-        ctr_label = y[self.config["data_config"]["label_fields"][0]]
-        ctcvr_label = y[self.config["data_config"]["label_fields"][1]]
-
-        ctr_pred, ctcvr_pred = self(x, training=True)  # Forward pass
-        ctr_loss = losses.binary_crossentropy(ctr_label, ctr_pred)  # shape=()
-        ctcvr_loss = losses.binary_crossentropy(ctcvr_label, ctcvr_pred)
-        loss = ctr_loss + ctcvr_loss
-
-        # Compute our own metrics
-        self.loss_tracker.update_state(loss)
-        self.ctr_loss_tracker.update_state(ctr_loss)
-        self.ctcvr_loss_tracker.update_state(ctcvr_loss)
-        self.ctr_auc.update_state(ctr_label, ctr_pred)
-        self.ctcvr_auc.update_state(ctcvr_label, ctcvr_pred)
-        return {"loss": self.loss_tracker.result(), "ctr_loss": self.ctr_loss_tracker.result(),
-                "ctcvr_loss": self.ctcvr_loss_tracker.result(),
-                "ctr_auc": self.ctr_auc.result(), "ctcvr_auc": self.ctcvr_auc.result()}
-
-    @property
-    def metrics(self):
-        return [self.loss_tracker, self.ctr_loss_tracker, self.ctcvr_loss_tracker, self.ctr_auc, self.ctcvr_auc]
