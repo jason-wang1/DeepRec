@@ -27,18 +27,19 @@ class TrainPipeline:
             self.config_str += config_str
         self.config = {**data_config, **model_config}
         self.run_eagerly = run_eagerly
-        print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
-
-    def map_sample(self):
-        feature_fields = set()
+        self.feature_fields = set()
         for feature_groups in self.config["model_config"]["feature_groups"].values():
             for feature in feature_groups:
                 if isinstance(feature['input_names'], list):
-                    feature_fields.update(feature['input_names'])
+                    self.feature_fields.update(feature['input_names'])
                 elif isinstance(feature['input_names'], str):
-                    feature_fields.add(feature['input_names'])
+                    self.feature_fields.add(feature['input_names'])
                 else:
                     raise ValueError(f"input_names of feature_fields type error: {feature}")
+        self.valid_data = None
+        print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+
+    def map_sample(self):
         input_attributes = self.config["data_config"]["input_attributes"]
         batch_size = self.config["data_config"]["batch_size"]
 
@@ -60,7 +61,7 @@ class TrainPipeline:
 
         def func(sample_tensor_dict):
             feature_dict = {}
-            for feature in feature_fields:
+            for feature in self.feature_fields:
                 tensor = sample_tensor_dict[feature]
                 if input_attributes[feature]["field_type"] == "WeightTagFeature":
                     pad_num = input_attributes[feature]["pad_num"]
@@ -178,11 +179,10 @@ class TrainPipeline:
                 output_types[key] = tf.string
             else:
                 raise ValueError(f"unexpected index_type: {attr_dict['index_type']}")
-        print(input_fields)
-        print(output_types)
         from config.account import access_id, secret_access_key, project, endpoint
         from odps import ODPS
         o = ODPS(access_id, secret_access_key, project, endpoint=endpoint)
+
         def read_max_compute():
             with o.execute_sql(sql).open_reader() as reader:
                 for record in reader:
@@ -203,13 +203,15 @@ class TrainPipeline:
             """
             dataset = tf.data.Dataset.from_generator(read_max_compute, output_types=output_types)
         elif data_type == "valid":
-            sql = f"""
-            SELECT  *
-            FROM    {self.config["data_config"]['table_name']}
-            WHERE   dt BETWEEN {self.config["data_config"]['valid_start_dt']} AND {self.config["data_config"]['valid_end_dt']}
-            LIMIT   {self.config["data_config"]['valid_limit']}
-            """
-            self.valid_data = [sample for sample in read_max_compute()]
+            if not self.valid_data:
+                sql = f"""
+                SELECT  *
+                FROM    {self.config["data_config"]['table_name']}
+                WHERE   dt BETWEEN {self.config["data_config"]['valid_start_dt']} AND {self.config["data_config"]['valid_end_dt']}
+                LIMIT   {self.config["data_config"]['valid_limit']}
+                """
+                self.valid_data = [sample for sample in read_max_compute()]
+
             def valid_data_gen():
                 for sample in self.valid_data:
                     yield sample
