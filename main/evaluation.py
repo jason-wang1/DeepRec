@@ -11,15 +11,13 @@ def mask_feature(feat):
 
 
 def feature_evaluation():
-    date_time = "2023-05-10 180849"
+    date_time = "2023-05-15 142409"
     model_path = f"../output/{date_time}\\model"
     model = keras.models.load_model(model_path)
     result = []
 
-    # data_config_path = "..\config\data_csv_test\data_csv_test.json"
-    # model_config_path = "..\config\data_csv_test\model_esmm.json"
-    data_config_path = "..\config\data_aliyun_down_rec\data_aliyun_down_rec.json"
-    model_config_path = "..\config\data_aliyun_down_rec\model_esmm.json"
+    data_config_path = f"../output/{date_time}/data_config.json"
+    model_config_path = f"../output/{date_time}/model_config.json"
     pipeline = TrainPipeline(data_config_path, model_config_path, run_eagerly=False)
     valid_ds = pipeline.read_data(data_type="valid")
     metrics = model.evaluate(valid_ds, return_dict=True)
