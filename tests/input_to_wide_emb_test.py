@@ -76,20 +76,23 @@ class InputToWideEmbTest(tf.test.TestCase):
         self.assertShapeEqual(deep_shape, deep)
 
     def test_attention_sequence_pooling_input(self):
-        feat = [{"input_names": "tag_brand_list", "feature_type": "TagFeature", "hash_bucket_size": 100},
-                {"input_names": "tag_category_list", "feature_type": "TagFeature", "hash_bucket_size": 100}]
+        feat = [{"input_names": "tag_brand_list", "hash_bucket_size": 100},
+                {"input_names": "tag_cate_list", "hash_bucket_size": 100},
+                {"input_names": "tag_xxxx_list", "hash_bucket_size": 100}]
+        input_attributes = {"tag_brand_list": {"field_type": "TagFeature", "index_type": "int", "pad_num": 5},
+                            "tag_cate_list": {"field_type": "TagFeature", "index_type": "int", "pad_num": 5},
+                            "tag_xxxx_list": {"field_type": "TagFeature", "index_type": "int", "pad_num": 5}}
         emb_dim = 7
-        layer = AttentionSequencePoolingInput(feat, emb_dim, pad_num=5)
-        query = tf.constant([[3, 4], [5, 6], [7, 8]])
+        layer = AttentionSequencePoolingInput(feat, input_attributes, emb_dim)
+        query = tf.constant([[3, 4, 5], [5, 6, 8]])  # feat_num = 3
         query_emb = Embedding(10, emb_dim)(query)
-        query_emb = tf.reshape(query_emb, shape=[-1, 1, 2 * emb_dim])
-        keys1 = tf.ragged.constant([[1], [2, 3], [4, 5, 6]])
-        keys2 = tf.ragged.constant([[1], [2, 3], [4, 5, 6]])
-        keys_length = keys1.row_lengths(axis=1)  # (batch_size,)
-        keys = [keys1.to_tensor(default_value=0, shape=[None, 5]),
-                keys2.to_tensor(default_value=0, shape=[None, 5])]
-        output = layer([query_emb, keys, keys_length])
-        output_shape = np.ones([3, 1, 2 * emb_dim])
+        query_emb = tf.reshape(query_emb, shape=[-1, 1, 3 * emb_dim])
+        keys = {"tag_brand_list": {"index": tf.constant([[1, 2, 3, 0, 0], [0, 0, 0, 0, 0]]), "value": tf.constant([[1., 1., 1., 0., 0.], [0., 0., 0., 0., 0.]])},
+                "tag_cate_list":  {"index": tf.constant([[1, 2, 3, 0, 0], [0, 0, 0, 0, 0]]), "value": tf.constant([[1., 1., 1., 0., 0.], [0., 0., 0., 0., 0.]])},
+                "tag_xxxx_list":  {"index": tf.constant([[1, 2, 3, 0, 0], [0, 0, 0, 0, 0]]), "value": tf.constant([[1., 1., 1., 0., 0.], [0., 0., 0., 0., 0.]])},
+                }
+        output = layer([query_emb, keys])
+        output_shape = np.ones([2, 1, 3 * emb_dim])
         print(output)
         self.assertShapeEqual(output_shape, output)
 

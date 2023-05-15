@@ -27,12 +27,19 @@ class TrainPipeline:
         self.feature_fields = set()
         for feature_groups in self.config["model_config"]["feature_groups"].values():
             for feature in feature_groups:
-                if isinstance(feature['input_names'], list):
-                    self.feature_fields.update(feature['input_names'])
-                elif isinstance(feature['input_names'], str):
-                    self.feature_fields.add(feature['input_names'])
+                if isinstance(feature, list):  # din类型特征
+                    for feature_ in feature:
+                        if isinstance(feature_['input_names'], list):
+                            self.feature_fields.update(feature_['input_names'])
+                        elif isinstance(feature_['input_names'], str):
+                            self.feature_fields.add(feature_['input_names'])
                 else:
-                    raise ValueError(f"input_names of feature_fields type error: {feature}")
+                    if isinstance(feature['input_names'], list):
+                        self.feature_fields.update(feature['input_names'])
+                    elif isinstance(feature['input_names'], str):
+                        self.feature_fields.add(feature['input_names'])
+                    else:
+                        raise ValueError(f"input_names of feature_fields type error: {feature}")
         self.valid_data = None
         print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 

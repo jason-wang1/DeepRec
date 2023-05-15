@@ -60,28 +60,31 @@ class BaseInputLayer(Layer):
 class AttentionSequencePoolingInput(Layer):
     """
       Input shape
-        - a list of tensor: [query, keys, keys_length]
+        - a list of tensor: [query, keys]
         - query: candidate item - 3D tensor with shape ``(batch_size, 1, m * emb_dim)``. len(feat_list) = m
-        - keys: user history seq -  a list of 2D tensor with shape ``(batch_size, pad_num)``
-        - keys_length: 1D tensor with shape ``(batch_size, )``
+        - keys: user history seq -  {"feat_name": {"index": index_tensor, "value": value_tensor}},
+          tensor shape ``(batch_size, pad_num)``
 
       Output shape
         - tensor with shape: ``(batch_size, 1, m * emb_dim)``.
     """
-    def __init__(self, feat_list, emb_dim, reg=None, hidden_units=None, activation='sigmoid', pad_num=20, **kwargs):
+    def __init__(self, feat_list, input_attributes, emb_dim, reg=None, hidden_units=None, activation='sigmoid', **kwargs):
         if hidden_units is None:
             hidden_units = [36, 1]
-        self.pad_num = pad_num
+        features_config = update_feat(feat_list, input_attributes)
+        for i in range(1, len(features_config)):
+            assert features_config[i]["pad_num"] == features_config[i-1]["pad_num"]
+        self.pad_num = features_config[0]["pad_num"]
+        self.feat_name_list = [feat["input_names"] for feat in feat_list]
         self.base_layer = [BaseInputLayer(feat, emb_dim, reg, False) for feat in feat_list]
         self.dnn = DNN(hidden_units, reg, activation)
         super(AttentionSequencePoolingInput, self).__init__(**kwargs)
 
     def call(self, inputs, *args, **kwargs):
-        query_emb, keys, keys_length = inputs
-        # keys_length = keys.row_lengths(axis=1)  # (batch_size,)
+        query_emb, keys = inputs
         keys_emb = []
-        for key, base_layer in zip(keys, self.base_layer):
-            keys_emb.append(base_layer(key))  # (batch_size, pad_num, emb_dim)
+        for feat_name, base_layer in zip(self.feat_name_list, self.base_layer):
+            keys_emb.append(base_layer(keys[feat_name]["index"]) * tf.expand_dims(keys[feat_name]['value'], axis=2))  # (batch_size, pad_num, emb_dim)
         keys_emb = tf.concat(keys_emb, axis=-1)  # (batch_size, pad_num, m * emb_dim)
         queries_emb = tf.tile(query_emb, [1, self.pad_num, 1])
         att_input = tf.concat([queries_emb, keys_emb, queries_emb-keys_emb, query_emb*keys_emb],
@@ -90,10 +93,10 @@ class AttentionSequencePoolingInput(Layer):
         att_output = tf.transpose(att_output, perm=[0, 2, 1])  # (batch_size, 1, pad_num)
 
         # mask
-        key_masks = tf.sequence_mask(keys_length, self.pad_num)  # (batch_size, pad_num)
+        key_masks = tf.equal(keys[self.feat_name_list[0]]['value'], tf.zeros_like(keys[self.feat_name_list[0]]['value'], dtype=tf.float32))  # (batch_size, pad_num)
         key_masks = tf.expand_dims(key_masks, axis=1)  # (batch_size, 1, pad_num)
         padding = tf.ones_like(att_output) * (-2**32+1)
-        att_output = tf.where(key_masks, att_output, padding)
+        att_output = tf.where(key_masks, padding, att_output)
 
         # scale
         att_output = tf.math.softmax(att_output, axis=-1)
@@ -166,6 +169,21 @@ class ComboInput(Layer):
             return tensor
 
 
+def update_feat(feat_list, input_attributes):
+    features_config = []
+    for input_feature in feat_list:
+        feature = input_feature
+        if isinstance(input_feature["input_names"], list):
+            feature["feature_name"] = "_".join(input_feature["input_names"]) + "_cross"
+            feature["field_type"] = "ComboFeature"
+        elif isinstance(input_feature["input_names"], str):
+            feature.update(input_attributes[input_feature["input_names"]])
+        else:
+            raise ValueError(f"unexpected input_names: {input_feature['input_names']}")
+        features_config.append(feature)
+    return features_config
+
+
 class InputToWideEmb(Layer):
     """
       Input shape
@@ -180,17 +198,7 @@ class InputToWideEmb(Layer):
     def __init__(self, keep_wide, emb_dim, feat_list, input_attributes, reg, **kwargs):
         self.keep_wide = keep_wide
         self.emb_dim = emb_dim
-        self.features_config = []
-        for input_feature in feat_list:
-            feature = input_feature
-            if isinstance(input_feature["input_names"], list):
-                feature["feature_name"] = "_".join(input_feature["input_names"]) + "_cross"
-                feature["field_type"] = "ComboFeature"
-            elif isinstance(input_feature["input_names"], str):
-                feature.update(input_attributes[input_feature["input_names"]])
-            else:
-                raise ValueError(f"unexpected input_names: {input_feature['input_names']}")
-            self.features_config.append(feature)
+        self.features_config = update_feat(feat_list, input_attributes)
         print(self.features_config)
         self.reg = reg
         super(InputToWideEmb, self).__init__(**kwargs)

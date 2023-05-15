@@ -1,59 +1,51 @@
 # -*- coding:utf-8 -*-
 import tensorflow as tf
-from tensorflow.python.keras.models import Model
-from tensorflow.python.keras.regularizers import l1, l2
+from models.base import Base
 from layers.tower_deepfm import DNN
 from layers.input_to_wide_emb import InputToWideEmb, AttentionSequencePoolingInput
 from tensorflow.python.keras.layers import Flatten
 
-class DIN(Model):
+
+class DIN(Base):
     def __init__(self, config, **kwargs):
-        user_feat_list = config["model_config"]["feature_groups"]["user"]
-        item_feat_list = config["model_config"]["feature_groups"]["item"]
-        self.din_feat_list = config["model_config"]["feature_groups"]["din"]
-        self.din_feat_num = len(self.din_feat_list)
-        self.pad_num = config["feature_config"]["pad_num"]
-        self.user_feat_config = [e for e in config["feature_config"]["features"] if e["input_names"] in user_feat_list]
-        self.item_feat_config = [e for e in config["feature_config"]["features"] if e["input_names"] in item_feat_list]
-        self.din_feat_config_list = [e for e in config["feature_config"]["features"] if e["input_names"] in self.din_feat_list]
-        self.emb_dim = config["model_config"]["embedding_dim"]
-        self.final_dnn_shape = config["model_config"]["deep_hidden_units"]
-        self.din_dnn_shape = config["model_config"]["din_hidden_units"]
-        if "l2_reg" in config["model_config"]:
-            self.reg = l2(config["model_config"]["l2_reg"])
-        elif "l1_reg" in config["model_config"]:
-            self.reg = l1(config["model_config"]["l1_reg"])
-        else:
-            self.reg = None
-        super(DIN, self).__init__(**kwargs)  # Be sure to call this somewhere!
+        self.feature_group_list = [(group_name + "_input", group) for group_name, group in config["model_config"]["feature_groups"].items() if group_name != "din"]
+        self.item_group_index = 0
+        for i, group_name in enumerate(config["model_config"]["feature_groups"].keys()):
+            if group_name == "item":
+                self.item_group_index = i
+        super(DIN, self).__init__(config, **kwargs)  # Be sure to call this somewhere!
 
     def build(self, input_shape):
-        self.user_input_to_wide_emb = InputToWideEmb(False, self.emb_dim, self.user_feat_config, self.reg, name="user_input")
-        self.item_input_to_wide_emb = InputToWideEmb(False, self.emb_dim, self.item_feat_config, self.reg, name="item_input")
-        self.att_layer = AttentionSequencePoolingInput(self.din_feat_config_list, self.emb_dim, self.reg,
-                                                       self.din_dnn_shape, pad_num=self.pad_num, name="din_input")
+        item_feat_group = self.config["model_config"]["feature_groups"]["item"]
+        din_feat_group_list = self.config["model_config"]["feature_groups"]["din"]
+        self.item_gather_list = []
+        for din_feat_group in din_feat_group_list:
+            gather = []
+            for din_feat in din_feat_group:
+                cross_item = din_feat["cross_item"]
+                for i, item_feat in enumerate(item_feat_group):
+                    if cross_item == item_feat["input_names"]:
+                        gather.append(i)
+            assert len(gather) == len(din_feat_group)
+            self.item_gather_list.append(gather)
+        self.input_to_wide_emb_list = [
+            InputToWideEmb(False, self.emb_dim, group, self.input_attributes, self.reg, name=group_name) for
+            group_name, group in self.feature_group_list]
+        din_dnn_shape = self.config["model_config"]["din_hidden_units"]
+        self.att_layer_list = [AttentionSequencePoolingInput(din_feat_group, self.input_attributes, self.emb_dim, self.reg, din_dnn_shape, name="din_input")
+                               for din_feat_group in din_feat_group_list]
         self.flatten = Flatten()
-        self.dnn = DNN(self.final_dnn_shape, self.reg, final_activation='sigmoid')
+        final_dnn_shape = self.config["model_config"]["deep_hidden_units"]
+        self.dnn = DNN(final_dnn_shape, self.reg, final_activation='sigmoid')
 
     def call(self, inputs, training=None, mask=None):
-        user_emb_input = self.user_input_to_wide_emb(inputs)  # (batch_size, feat_size, emb_dim)
-        item_emb_input = self.item_input_to_wide_emb(inputs)  # (batch_size, feat_size, emb_dim)
-        query_emb = tf.slice(item_emb_input, begin=[0, 0, 0], size=[-1, self.din_feat_num, -1])
-        query_emb = tf.reshape(query_emb, shape=[-1, 1, self.din_feat_num * self.emb_dim])
-        keys_length = inputs[self.din_feat_list[0]].row_lengths(axis=1)  # (batch_size,)
-        keys = [inputs[key].to_tensor(default_value=0, shape=[None, self.pad_num]) for key in self.din_feat_list]
-        seq_emb_input = self.att_layer([query_emb, keys, keys_length])  # (batch_size, 1, m * emb_dim)
-        dnn_input = tf.concat([self.flatten(user_emb_input), self.flatten(seq_emb_input), self.flatten(item_emb_input)], axis=-1)
+        dnn_input_list = [input_to_wide_emb(inputs) for input_to_wide_emb in self.input_to_wide_emb_list]  # (batch_size, feat_size, emb_dim)
+        for item_gather, att_layer in zip(self.item_gather_list, self.att_layer_list):
+            query_emb = tf.gather(dnn_input_list[self.item_group_index], indices=item_gather, axis=1)
+            query_emb = tf.reshape(query_emb, shape=[self.batch_size, 1, len(item_gather) * self.emb_dim])
+            seq_emb_input = att_layer([query_emb, inputs])  # (batch_size, 1, m * emb_dim)
+            dnn_input_list.append(seq_emb_input)
+        dnn_input = tf.concat(dnn_input_list, axis=1)  # (batch_size, feat_size*group_size, emb_dim)
+        dnn_input = self.flatten(dnn_input)
         pred = self.dnn(dnn_input)
         return pred
-
-    def train_step(self, data):
-        x, y = data
-        with tf.GradientTape() as tape:
-            y_pred = self(x, training=True)  # Forward pass
-            loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
-        trainable_vars = self.trainable_variables
-        gradients = tape.gradient(loss, trainable_vars)
-        self.optimizer.apply_gradients(zip(gradients, trainable_vars))
-        self.compiled_metrics.update_state(y, y_pred)
-        return {m.name: m.result() for m in self.metrics}

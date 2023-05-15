@@ -11,10 +11,12 @@ def save_model():
 
 
 if __name__ == '__main__':
-    # data_config_path = "..\config\data_aliyun_down_rec\data_aliyun_down_rec.json"
+    data_config_path = "..\config\data_aliyun_down_rec\data_aliyun_down_rec.json"
     # model_config_path = "..\config\data_aliyun_down_rec\model_esmm.json"
-    data_config_path = "..\config\data_csv_test\data_csv_test.json"
-    model_config_path = "..\config\data_csv_test\model_esmm.json"
+    model_config_path = "..\config\data_aliyun_down_rec\model_din.json"
+    # data_config_path = "..\config\data_csv_test\data_csv_test.json"
+    # model_config_path = "..\config\data_csv_test\model_afm.json"
+    # model_config_path = "..\config\data_csv_test\model_din.json"
     pipeline = TrainPipeline(data_config_path, model_config_path, run_eagerly=True)
     model = pipeline.train()
     model.summary()

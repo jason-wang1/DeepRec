@@ -5,7 +5,6 @@ from tensorflow.python.keras.regularizers import l1, l2
 class Base(Model):
     def __init__(self, config, **kwargs):
         self.config = config
-        self.feature_group_list = [(group_name + "_input", group) for group_name, group in config["model_config"]["feature_groups"].items()]
         self.input_attributes = config["data_config"]["input_attributes"]
         self.emb_dim = config["model_config"]["embedding_dim"]
         if "l2_reg" in config["model_config"]:

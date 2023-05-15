@@ -1,0 +1,113 @@
+{
+  "model_config": {
+    "model_type": "DIN",
+    "feature_groups": {
+      "user": [
+        {"input_names": "101", "hash_bucket_size": 100000},
+        {"input_names": "102", "num_buckets": 4},
+        {"input_names": "103", "hash_bucket_size": 100},
+        {"input_names": "104", "hash_bucket_size": 1000},
+        {"input_names": "105", "num_buckets": 5},
+        {"input_names": "109", "boundaries": [1, 6, 22, 189, 410, 651]},
+        {"input_names": "110", "num_buckets": 7},
+        {"input_names": "111", "boundaries": [0,10, 100, 1000, 10000, 100000]},
+        {"input_names": "112", "num_buckets": 2}
+      ],
+      "item": [
+        {"input_names": "501", "num_buckets": 5000000},
+        {"input_names": "502", "hash_bucket_size": 100},
+        {"input_names": "503", "num_buckets": 25},
+        {"input_names": "504", "hash_bucket_size": 100000},
+        {"input_names": "505", "num_buckets": 2000},
+        {"input_names": "506", "num_buckets": 2000},
+        {"input_names": "507", "num_buckets": 2000},
+        {"input_names": "508", "boundaries": [1, 10, 28, 32, 80, 100, 280]},
+        {"input_names": "509", "num_buckets": 3},
+        {"input_names": "511", "hash_bucket_size": 500000},
+        {"input_names": "512", "num_buckets": 12},
+        {"input_names": "514", "hash_bucket_size": 50000},
+        {"input_names": "515", "hash_bucket_size": 100},
+        {"input_names": "516", "num_buckets": 5},
+        {"input_names": "517", "num_buckets": 2},
+        {"input_names": "518", "num_buckets": 1},
+        {"input_names": "519", "num_buckets": 1},
+        {"input_names": "520", "num_buckets": 1},
+        {"input_names": "521", "num_buckets": 4},
+        {"input_names": "522", "num_buckets": 2},
+        {"input_names": "523", "num_buckets": 2},
+        {"input_names": "524", "num_buckets": 3},
+        {"input_names": "525", "num_buckets": 2},
+        {"input_names": "526", "num_buckets": 2},
+        {"input_names": "528_14", "boundaries": [0, 1, 2, 3, 4, 5, 8, 20]},
+        {"input_names": "528_30", "boundaries": [0, 1, 2, 3, 5, 10,20,50]},
+        {"input_names": "529_14", "boundaries": [0.0, 0.001, 0.005, 0.01, 0.02, 0.03, 0.05]},
+        {"input_names": "529_30", "boundaries": [0.0, 0.001, 0.005, 0.01, 0.02, 0.03, 0.05]},
+        {"input_names": "530_14", "boundaries": [0, 1, 2, 3, 4, 5, 10]},
+        {"input_names": "530_30", "boundaries": [0, 1, 2, 3, 5, 10,20]},
+        {"input_names": "531_14", "boundaries": [0, 1, 2, 3, 4, 5, 10]},
+        {"input_names": "531_30", "boundaries": [0, 1, 2, 3, 5, 10,20]}
+      ],
+      "main": [
+        {"input_names": "801", "num_buckets": 5000000},
+        {"input_names": "802", "hash_bucket_size": 100},
+        {"input_names": "803", "num_buckets": 25},
+        {"input_names": "804", "hash_bucket_size": 100000},
+        {"input_names": "805", "num_buckets": 2000},
+        {"input_names": "806", "num_buckets": 2000},
+        {"input_names": "807", "num_buckets": 2000},
+        {"input_names": "808", "boundaries": [1, 10, 28, 32, 80, 100, 280]},
+        {"input_names": "809", "num_buckets": 3},
+        {"input_names": "811", "hash_bucket_size": 500000},
+        {"input_names": "812", "num_buckets": 12},
+        {"input_names": "814", "hash_bucket_size": 50000},
+        {"input_names": "815", "hash_bucket_size": 100},
+        {"input_names": "816", "num_buckets": 5},
+        {"input_names": "817", "num_buckets": 2},
+        {"input_names": "818", "num_buckets": 1},
+        {"input_names": "819", "num_buckets": 1},
+        {"input_names": "820", "num_buckets": 1},
+        {"input_names": "821", "num_buckets": 4},
+        {"input_names": "822", "num_buckets": 2},
+        {"input_names": "823", "num_buckets": 2},
+        {"input_names": "824", "num_buckets": 3},
+        {"input_names": "825", "num_buckets": 2},
+        {"input_names": "826", "num_buckets": 2},
+        {"input_names": "828_14", "boundaries": [0, 1, 2, 3, 4, 5, 8, 20]},
+        {"input_names": "828_30", "boundaries": [0, 1, 2, 3, 5, 10,20,50]},
+        {"input_names": "829_14", "boundaries": [0.0, 0.001, 0.005, 0.01, 0.02, 0.03, 0.05]},
+        {"input_names": "829_30", "boundaries": [0.0, 0.001, 0.005, 0.01, 0.02, 0.03, 0.05]},
+        {"input_names": "830_14", "boundaries": [0, 1, 2, 3, 4, 5, 10]},
+        {"input_names": "830_30", "boundaries": [0, 1, 2, 3, 5, 10,20]},
+        {"input_names": "831_14", "boundaries": [0, 1, 2, 3, 4, 5, 10]},
+        {"input_names": "831_30", "boundaries": [0, 1, 2, 3, 5, 10,20]}
+      ],
+      "din": [
+        [
+          {"input_names": "106_21", "num_buckets": 5000000, "cross_item": "501"}
+        ],
+        [
+          {"input_names": "107_21", "hash_bucket_size": 100000, "cross_item": "504"}
+        ],
+        [
+          {"input_names": "108_21", "hash_bucket_size": 100000, "cross_item": "501"}
+        ]
+      ]
+    },
+    "embedding_dim": 16,
+    "wide_output_dim": 16,
+    "din_hidden_units": [36, 1],
+    "deep_hidden_units": [128, 64, 32, 1],
+    "l2_reg": 0.0001
+  },
+  "train_config": {
+    "epochs": 30,
+    "steps_per_epoch":20,
+    "loss": "binary_crossentropy",
+    "metrics": ["AUC"],
+    "early_stopping_patience": 5,
+    "optimizer": {
+      "name": "adam",
+      "learning_rate": 0.001
+    }
+  }
+}

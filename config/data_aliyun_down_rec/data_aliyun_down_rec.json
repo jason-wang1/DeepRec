@@ -1,6 +1,6 @@
 {
   "data_config": {
-    "label_fields": ["click_label", "down_label"],
+    "label_fields": ["down_label"],
     "input_attributes": {
       "click_label": {"field_type": "ClassLabel"},
       "down_label": {"field_type": "ClassLabel"},

@@ -6,6 +6,7 @@ from layers.input_to_wide_emb import InputToWideEmb
 
 class ESMM(Base):
     def __init__(self, config, **kwargs):
+        self.feature_group_list = [(group_name + "_input", group) for group_name, group in config["model_config"]["feature_groups"].items()]
         self.dnn_shape = config["model_config"]["deep_hidden_units"]
         super(ESMM, self).__init__(config, **kwargs)
 
