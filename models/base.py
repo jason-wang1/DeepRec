@@ -14,7 +14,6 @@ class Base(Model):
             self.reg = l1(config["model_config"]["l1_reg"])
         else:
             self.reg = None
-        self.batch_size = config['data_config']['batch_size']
         self.feature_group_list = [(group_name + "_input", group) for group_name, group in config["model_config"]["feature_groups"].items() if group_name != "din"]
         super(Base, self).__init__(**kwargs)
 
@@ -30,6 +29,5 @@ class BaseLayer(Layer):
             self.reg = l1(config["model_config"]["l1_reg"])
         else:
             self.reg = None
-        self.batch_size = config['data_config']['batch_size']
         self.feature_group_list = [(group_name + "_input", group) for group_name, group in config["model_config"]["feature_groups"].items() if group_name != "din"]
         super(BaseLayer, self).__init__(**kwargs)

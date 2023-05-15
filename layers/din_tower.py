@@ -49,7 +49,7 @@ class DinTower(BaseLayer):
         dnn_input_list = [input_to_wide_emb(inputs) for input_to_wide_emb in self.input_to_wide_emb_list]  # (batch_size, feat_size, emb_dim)
         for item_gather, att_layer in zip(self.item_gather_list, self.att_layer_list):
             query_emb = tf.gather(dnn_input_list[self.item_group_index], indices=item_gather, axis=1)
-            query_emb = tf.reshape(query_emb, shape=[self.batch_size, 1, len(item_gather) * self.emb_dim])
+            query_emb = tf.reshape(query_emb, shape=[-1, 1, len(item_gather) * self.emb_dim])
             seq_emb_input = att_layer([query_emb, inputs])  # (batch_size, 1, m * emb_dim)
             dnn_input_list.append(seq_emb_input)
         dnn_input = tf.concat(dnn_input_list, axis=1)  # (batch_size, feat_size*group_size, emb_dim)
