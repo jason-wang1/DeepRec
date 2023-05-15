@@ -7,7 +7,6 @@ from layers.afm import AFMLayer
 
 class AFM(Base):
     def __init__(self, config, **kwargs):
-        self.feature_group_list = [(group_name + "_input", group) for group_name, group in config["model_config"]["feature_groups"].items()]
         super(AFM, self).__init__(config, **kwargs)  # Be sure to call this somewhere!
 
     def build(self, input_shape):
