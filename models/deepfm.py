@@ -1,28 +1,22 @@
 # -*- coding:utf-8 -*-
 import tensorflow as tf
-from tensorflow.python.keras.models import Model
-from tensorflow.python.keras.regularizers import l1, l2
-from layers.fm import FMLayer
+
 from layers.dnn import DNN
+from layers.fm import FMLayer
 from layers.input_to_wide_emb import InputToWideEmb
+from models.base import Base
+from tensorflow.python.keras.layers import Flatten
 
 
-class DeepFM(Model):
+class DeepFM(Base):
     def __init__(self, config, **kwargs):
-        self.config = config
-        self.feat_size = len(config["feature_config"]["features"])
-        self.emb_dim = config["model_config"]["embedding_dim"]
         self.dnn_shape = config["model_config"]["deep_hidden_units"]
-        if "l2_reg" in config["model_config"]:
-            self.reg = l2(config["model_config"]["l2_reg"])
-        elif "l1_reg" in config["model_config"]:
-            self.reg = l1(config["model_config"]["l1_reg"])
-        else:
-            self.reg = None
-        super(DeepFM, self).__init__(**kwargs)  # Be sure to call this somewhere!
+        super(DeepFM, self).__init__(config, **kwargs)  # Be sure to call this somewhere!
 
     def build(self, input_shape):
-        self.input_to_wide_emb = InputToWideEmb(True, self.emb_dim, self.config["feature_config"]["features"], self.reg)
+        assert len(self.feature_group_list) == 1
+        self.input_to_wide_emb = InputToWideEmb(True, self.emb_dim, self.feature_group_list[0][1], self.input_attributes, self.reg, name=self.feature_group_list[0][0])
+        self.flatten = Flatten()
         self.fm = FMLayer(name="fm")
         self.dnn = DNN(dnn_shape=self.dnn_shape, reg=self.reg, name="dnn")
         self.bias = self.add_weight(name='bias', shape=[1], initializer='zeros')
@@ -31,19 +25,8 @@ class DeepFM(Model):
         wide_input, fm_input = self.input_to_wide_emb(inputs)
         wide_output = tf.reduce_sum(wide_input, axis=1,  keepdims=True) + self.bias  # (batch_size, 1)
         fm_output = self.fm(fm_input)  # (batch_size, 1)
-        dnn_input = tf.reshape(fm_input, [-1, self.feat_size*self.emb_dim])
+        dnn_input = self.flatten(fm_input)  # (batch_size, feat_size*emb_dim)
         dnn_output = self.dnn(dnn_input)  # (batch_size, 1)
 
         output = tf.sigmoid(wide_output + fm_output + dnn_output)
         return output
-
-    def train_step(self, data):
-        x, y = data
-        with tf.GradientTape() as tape:
-            y_pred = self(x, training=True)  # Forward pass
-            loss = self.compiled_loss(y, y_pred, regularization_losses=self.losses)
-        trainable_vars = self.trainable_variables
-        gradients = tape.gradient(loss, trainable_vars)
-        self.optimizer.apply_gradients(zip(gradients, trainable_vars))
-        self.compiled_metrics.update_state(y, y_pred)
-        return {m.name: m.result() for m in self.metrics}

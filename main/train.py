@@ -19,7 +19,8 @@ if __name__ == '__main__':
     data_config_path = "..\config\data_csv_test\data_csv_test.json"
     # model_config_path = "..\config\data_csv_test\model_afm.json"
     # model_config_path = "..\config\data_csv_test\model_din.json"
-    model_config_path = "..\config\data_csv_test\model_fm.json"
+    # model_config_path = "..\config\data_csv_test\model_fm.json"
+    model_config_path = "..\config\data_csv_test\model_deepfm.json"
     pipeline = TrainPipeline(data_config_path, model_config_path, run_eagerly=False)
     model = pipeline.train()
     model.summary()
