@@ -33,13 +33,13 @@ class BaseInputLayer(Layer):
         elif "boundaries" in self.feat:
             input_dim = len(self.feat["boundaries"]) + 1
             boundaries = self.feat["boundaries"]
-            self.lookup = Lambda(lambda x: tf.raw_ops.Bucketize(input=x, boundaries=boundaries))
+            self.lookup = Lambda(lambda x: tf.raw_ops.Bucketize(input=x, boundaries=boundaries), name=f'boundaries_{self.feat_name}')
         elif "num_buckets" in self.feat:
             input_dim = self.feat["num_buckets"] + 1
             self.lookup = Lambda(lambda x: tf.where(
                 tf.math.logical_or(tf.math.greater_equal(x, tf.constant(input_dim)),
                                    tf.math.less(x, tf.constant(0))),
-                tf.constant(0), x))
+                tf.constant(0), x), name=f'num_buckets_{self.feat_name}')
         else:
             raise ValueError(f"unexpected {self.feat}")
         self.emb = Embedding(input_dim, self.emb_dim, embeddings_regularizer=self.reg, name=f'emb_{self.feat_name}')
@@ -76,7 +76,7 @@ class AttentionSequencePoolingInput(Layer):
             assert features_config[i]["pad_num"] == features_config[i-1]["pad_num"]
         self.pad_num = features_config[0]["pad_num"]
         self.feat_name_list = [feat["input_names"] for feat in feat_list]
-        self.base_layer = [BaseInputLayer(feat, emb_dim, reg, False) for feat in feat_list]
+        self.base_layer = [BaseInputLayer(feat, emb_dim, reg, False, name='base_input') for feat in feat_list]
         self.dnn = DNN(hidden_units, reg, activation)
         super(AttentionSequencePoolingInput, self).__init__(**kwargs)
 
@@ -116,7 +116,7 @@ class WeightTagPoolingInput(Layer):
     """
     def __init__(self, feat, emb_dim, reg, keep_wide, **kwargs):
         self.keep_wide = keep_wide
-        self.base_layer = BaseInputLayer(feat, emb_dim, reg, keep_wide)
+        self.base_layer = BaseInputLayer(feat, emb_dim, reg, keep_wide, name='base_input')
         super(WeightTagPoolingInput, self).__init__(**kwargs)
 
     def call(self, inputs, training=None, **kwargs):
@@ -148,7 +148,7 @@ class ComboInput(Layer):
         feat_name = feat["feature_name"]
         self.cross = CategoryCrossing(name=f'cross_{feat_name}')
         self.squeeze = Lambda(lambda x: tf.squeeze(x, axis=1))
-        self.base_layer = BaseInputLayer(feat, emb_dim, reg, keep_wide)
+        self.base_layer = BaseInputLayer(feat, emb_dim, reg, keep_wide, name='base_input')
         super(ComboInput, self).__init__(**kwargs)
 
     def call(self, inputs, training=None, **kwargs):
@@ -207,9 +207,9 @@ class InputToWideEmb(Layer):
         self.layers = []
         for feat in self.features_config:
             if feat["field_type"] in {"WeightTagFeature", "TagFeature", "SingleFeature"}:
-                self.layers.append(WeightTagPoolingInput(feat, self.emb_dim, self.reg, self.keep_wide))
+                self.layers.append(WeightTagPoolingInput(feat, self.emb_dim, self.reg, self.keep_wide, name='weight_tag_pooling_input'))
             elif feat["field_type"] == "ComboFeature" and isinstance(feat["input_names"], list):
-                self.layers.append(ComboInput(feat, self.emb_dim, self.reg, self.keep_wide))
+                self.layers.append(ComboInput(feat, self.emb_dim, self.reg, self.keep_wide, name='combo_input'))
             else:
                 raise ValueError(f"unexpected feature_type: {feat['feature_type']}")
         super(InputToWideEmb, self).build(input_shape)
