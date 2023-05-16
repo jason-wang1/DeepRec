@@ -5,7 +5,7 @@ from tensorflow.python.keras.regularizers import l1, l2
 
 from layers.input_to_wide_emb import InputToWideEmb
 from layers.tower_deepfm import TowerDeepFM
-from train_pipeline import TrainPipeline
+from pipeline import TrainPipeline
 
 
 def get_inputs(feature_groups):

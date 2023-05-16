@@ -1,4 +1,4 @@
-from train_pipeline import TrainPipeline
+from pipeline import TrainPipeline
 
 
 def save_model():

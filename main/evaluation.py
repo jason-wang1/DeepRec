@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow import keras
-from train_pipeline import TrainPipeline
+from pipeline import TrainPipeline
 
 
 def mask_feature(feat):
